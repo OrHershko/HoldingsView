@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from api.core.config import settings
-# We will create this router in a later step
-# from api.v1.router import api_router
+# Import the v1 router
+from api.v1.router import api_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -20,8 +20,9 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_headers=["*"],
     )
 
-# Placeholder for API router - will be uncommented later
-# app.include_router(api_router, prefix=settings.API_V1_STR)
+# Include the API router
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
 
 @app.get("/", tags=["Health Check"])
 def read_root():
