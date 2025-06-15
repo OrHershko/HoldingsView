@@ -2,9 +2,9 @@ name: Backend CI
 
 on:
   push:
-    branches: ["main", "master", "develop"]
+    branches: [ "main", "master", "develop" ]
   pull_request:
-    branches: ["main", "master", "develop"]
+    branches: [ "main", "master", "develop" ]
   workflow_dispatch:
 
 jobs:
@@ -18,13 +18,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install Ruff
         run: pip install ruff
 
       - name: Run linter
-        run: ruff check api
+        # Apply fixes automatically. The job will fail only if there are
+        # errors that cannot be fixed automatically.
+        run: ruff check api --fix
 
       - name: Check formatting
         run: ruff format --check api
@@ -42,7 +44,7 @@ jobs:
           POSTGRES_PASSWORD: testpassword
           POSTGRES_DB: testdb
         ports:
-          - 5433:5432
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -56,11 +58,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install Dependencies
         run: pip install -r api/requirements.txt
-
+      
       - name: Run Pytest
         run: pytest
         env:

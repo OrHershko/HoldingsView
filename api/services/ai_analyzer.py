@@ -13,7 +13,8 @@ def format_holdings_for_prompt(holdings: List[Holding]) -> str:
 
     formatted_holdings = "\n".join(
         [
-            f"- {h.quantity} shares of {h.symbol} purchased at ${h.purchase_price:.2f} on {h.purchase_date.strftime('%Y-%m-%d')}"
+            f"- {h.quantity} shares of {h.symbol} purchased at "
+            f"${h.purchase_price:.2f} on {h.purchase_date.strftime('%Y-%m-%d')}"
             for h in holdings
         ]
     )
