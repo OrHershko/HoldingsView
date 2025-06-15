@@ -13,10 +13,13 @@ class Settings(BaseSettings):
     
     # Environment control: "development", "production", or "testing"
     ENVIRONMENT: str = "development"
-    # --- New Flag ---
+    
     # Set to True to disable Firebase auth for local development and API doc testing.
     # WARNING: This should NEVER be True in a testing or production environment.
     DISABLE_AUTH_FOR_DEV: bool = False
+
+    # Redis URL for Celery and Caching
+    REDIS_URL: str = "redis://redis:6379/0"
 
     # Local Database Configuration
     POSTGRES_SERVER: str

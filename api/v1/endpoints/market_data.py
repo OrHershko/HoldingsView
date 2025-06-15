@@ -1,32 +1,25 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, status, Depends
 from api.auth.firebase import get_current_user
-from api.schemas.market_data import EnrichedMarketData
-from api.services import market_data_aggregator
+from api.tasks import get_enriched_market_data_task
+from api.schemas.task import TaskStatus
 
 router = APIRouter()
 
-@router.get(
+@router.post(
     "/{symbol}",
-    response_model=EnrichedMarketData,
-    summary="Get Enriched Market Data for a Symbol",
-    dependencies=[Depends(get_current_user)] # Secure this endpoint
+    response_model=TaskStatus,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Trigger Enriched Market Data Analysis",
+    dependencies=[Depends(get_current_user)]
 )
-async def get_market_data_for_symbol(symbol: str):
+def trigger_market_data_for_symbol(symbol: str):
     """
-    Retrieve comprehensive market data for a single stock symbol.
+    Submits a background task to fetch and analyze market data for a symbol.
     
-    This includes:
-    - Current price and historical OHLCV data.
-    - Calculated technical indicators (SMA, RSI, MACD, etc.).
-    - Key fundamental data (Market Cap, P/E, EPS, etc.).
-    - Latest news articles.
+    This endpoint returns immediately with a `task_id`. Use the
+    `/api/v1/tasks/{task_id}` endpoint to check the status and retrieve the
+    result once the task is complete.
     """
-    try:
-        data = await market_data_aggregator.get_enriched_market_data(symbol)
-        return data
-    except (ValueError, KeyError, IndexError) as e:
-        # Catch potential errors from yfinance if a symbol is invalid or data is missing
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Could not retrieve market data for symbol '{symbol}'. Error: {e}",
-        )
+    # .delay() is the shortcut to send a task to the queue
+    task = get_enriched_market_data_task.delay(symbol.upper())
+    return TaskStatus(task_id=task.id, status="PENDING")
