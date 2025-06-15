@@ -2,4 +2,4 @@
 # Its presence makes the 'models' directory a Python package.
 from .user import User
 from .portfolio import Portfolio
-from .holding import Holding
+from .transaction import Transaction

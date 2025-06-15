@@ -3,25 +3,25 @@ from typing import List
 import httpx
 
 from api.core.config import settings
-from api.models.holding import Holding
+from api.schemas.holding import CalculatedHolding
 
 
-def format_holdings_for_prompt(holdings: List[Holding]) -> str:
-    """Formats a list of holding objects into a string for the AI prompt."""
+def format_holdings_for_prompt(holdings: List[CalculatedHolding]) -> str:
+    """Formats a list of calculated holding objects into a string for the AI prompt."""
     if not holdings:
         return "The portfolio is empty."
 
     formatted_holdings = "\n".join(
         [
-            f"- {h.quantity} shares of {h.symbol} purchased at "
-            f"${h.purchase_price:.2f} on {h.purchase_date.strftime('%Y-%m-%d')}"
+            f"- {h.quantity:.4f} shares of {h.symbol} with an average cost basis of "
+            f"${h.average_cost_basis:.2f} per share."
             for h in holdings
         ]
     )
     return formatted_holdings
 
 
-async def analyze_portfolio(holdings: List[Holding]) -> str:
+async def analyze_portfolio(holdings: List[CalculatedHolding]) -> str:
     """
     Analyzes a portfolio's holdings using an external AI model via OpenRouter.
     """

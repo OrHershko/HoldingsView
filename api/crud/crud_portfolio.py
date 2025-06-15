@@ -5,10 +5,10 @@ from api.models.portfolio import Portfolio
 from api.schemas.portfolio import PortfolioCreate, PortfolioUpdate
 
 def get(db: Session, *, id: int, user_id: int) -> Optional[Portfolio]:
-    """Get a single portfolio by ID, ensuring it belongs to the user. Eager loads holdings."""
+    """Get a single portfolio by ID, ensuring it belongs to the user. Eager loads transactions."""
     return (
         db.query(Portfolio)
-        .options(joinedload(Portfolio.holdings))
+        .options(joinedload(Portfolio.transactions))
         .filter(Portfolio.id == id, Portfolio.user_id == user_id)
         .first()
     )

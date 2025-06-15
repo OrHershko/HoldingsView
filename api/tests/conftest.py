@@ -4,6 +4,7 @@ from typing import Generator, Tuple
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy_utils import database_exists, create_database, drop_database
 
 from api.main import app
 from api.core.config import settings
@@ -22,11 +23,19 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 @pytest.fixture(scope="session", autouse=True)
 def db_setup_and_teardown():
     """
-    Fixture to create and drop the test database schema for the entire test session.
+    Fixture to create the test database and schema for the entire test session,
+    and drop it afterwards.
     """
+    db_url = settings.DATABASE_URL
+    if not database_exists(db_url):
+        create_database(db_url)
+        print(f"Created test database: {db_url}")
+        
     Base.metadata.create_all(bind=engine)
     yield
-    Base.metadata.drop_all(bind=engine)
+    drop_database(db_url)
+    print(f"Dropped test database: {db_url}")
+
 
 def override_get_db():
     """
@@ -45,7 +54,7 @@ app.dependency_overrides[get_db] = override_get_db
 def db() -> Generator[Session, None, None]:
     """
     Fixture to provide a database session to a single test function.
-    Resets the DB after the test by deleting all data.
+    Resets the DB after the test by deleting all data from tables.
     """
     db_session = TestingSessionLocal()
     yield db_session

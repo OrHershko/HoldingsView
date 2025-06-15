@@ -8,6 +8,8 @@ pydantic-settings
 passlib[bcrypt]
 python-jose[cryptography]
 firebase-admin
+yfinance
+SQLAlchemy-Utils==0.41.1
 
 # Testing
 pytest
