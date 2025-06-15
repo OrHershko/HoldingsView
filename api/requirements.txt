@@ -9,6 +9,8 @@ passlib[bcrypt]
 python-jose[cryptography]
 firebase-admin
 yfinance
+pandas-ta
+numpy<2.0
 SQLAlchemy-Utils==0.41.1
 
 # Testing

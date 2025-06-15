@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     
     # Environment control: "development", "production", or "testing"
     ENVIRONMENT: str = "development"
+    # --- New Flag ---
+    # Set to True to disable Firebase auth for local development and API doc testing.
+    # WARNING: This should NEVER be True in a testing or production environment.
+    DISABLE_AUTH_FOR_DEV: bool = False
 
     # Local Database Configuration
     POSTGRES_SERVER: str
@@ -58,6 +62,7 @@ class Settings(BaseSettings):
             return json.loads(decoded_str)
         except (ValueError, TypeError):
             # Return dummy config for testing or if var is not set
+            print("WARNING: Could not decode FIREBASE_SERVICE_ACCOUNT_JSON_BASE64. Using dummy credentials.")
             return {"type": "service_account", "project_id": "development"}
 
     class Config:
