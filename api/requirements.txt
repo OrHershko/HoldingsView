@@ -8,3 +8,11 @@ pydantic-settings
 passlib[bcrypt]
 python-jose[cryptography]
 firebase-admin
+
+# Testing
+pytest
+pytest-cov
+httpx
+pytest-mock
+pytest-asyncio
+ruff

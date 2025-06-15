@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Holdings View API"
     API_V1_STR: str = "/api/v1"
     
-    # Environment control
+    # Environment control: "development", "production", or "testing"
     ENVIRONMENT: str = "development"
 
     # Local Database Configuration
@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
     POSTGRES_PORT: str
+    POSTGRES_DB_TEST: str
 
     # Production Database URL (Supabase)
     PRODUCTION_DATABASE_URL: Optional[str] = None
@@ -35,13 +36,17 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URL(self) -> str:
         """Return appropriate database URL based on environment"""
+        if self.ENVIRONMENT.lower() == "testing":
+            test_url = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_TEST}"
+            # print(f"Using TESTING database: {test_url}")
+            return test_url
         if self.ENVIRONMENT.lower() == "production" and self.PRODUCTION_DATABASE_URL:
-            print(f"Using PRODUCTION database: {self.PRODUCTION_DATABASE_URL[:30]}...")
+            # print(f"Using PRODUCTION database: {self.PRODUCTION_DATABASE_URL[:30]}...")
             return self.PRODUCTION_DATABASE_URL
-        else:
-            local_url = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-            print(f"Using DEVELOPMENT database: {local_url}")
-            return local_url
+        
+        local_url = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        # print(f"Using DEVELOPMENT database: {local_url}")
+        return local_url
 
     @property
     def FIREBASE_CREDENTIALS(self) -> dict:
@@ -51,8 +56,8 @@ class Settings(BaseSettings):
         try:
             decoded_str = base64.b64decode(self.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64)
             return json.loads(decoded_str)
-        except ValueError:
-            # Return dummy config for development
+        except (ValueError, TypeError):
+            # Return dummy config for testing or if var is not set
             return {"type": "service_account", "project_id": "development"}
 
     class Config:

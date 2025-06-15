@@ -1,0 +1,79 @@
+name: Backend CI
+
+on:
+  push:
+    branches: ["main", "master", "develop"]
+  pull_request:
+    branches: ["main", "master", "develop"]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run linter
+        run: ruff check api
+
+      - name: Check formatting
+        run: ruff format --check api
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint # This job will only run if the lint job succeeds
+    services:
+      # Spin up a PostgreSQL database for the tests
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: pip install -r api/requirements.txt
+
+      - name: Run Pytest
+        run: pytest
+        env:
+          # --- App Config ---
+          ENVIRONMENT: "testing"
+          # --- Database ---
+          POSTGRES_SERVER: localhost # The service container is available on localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+          POSTGRES_DB_TEST: testdb # Use the same DB for testing in CI
+          # --- Secrets (should be set in GitHub repository secrets) ---
+          FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          BACKEND_CORS_ORIGINS: "http://localhost:3000" # Dummy value for CI

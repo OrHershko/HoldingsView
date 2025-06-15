@@ -8,11 +8,12 @@ from api.auth.firebase import get_current_user, get_db
 from api.models.user import User
 from api.schemas.portfolio import PortfolioCreate, PortfolioRead, PortfolioUpdate, PortfolioReadWithHoldings
 from api.schemas.holding import HoldingCreate, HoldingRead, HoldingUpdate
+from api.schemas.ai import AnalysisResult
+from api.services import ai_analyzer
 
 router = APIRouter()
 
 # --- Portfolio Endpoints ---
-
 @router.post("", response_model=PortfolioRead, status_code=status.HTTP_201_CREATED, summary="Create Portfolio")
 def create_portfolio(
     *,
@@ -88,8 +89,7 @@ def delete_portfolio(
     deleted_portfolio = crud_portfolio.remove(db=db, id=portfolio_id, user_id=current_user.id)
     return deleted_portfolio
 
-# --- Holding Endpoints (Nested under Portfolios) ---
-
+# --- Holding Endpoints ---
 @router.post("/{portfolio_id}/holdings", response_model=HoldingRead, status_code=status.HTTP_201_CREATED, summary="Add Holding to Portfolio")
 def create_holding(
     *,
@@ -158,3 +158,22 @@ def delete_holding(
 
     deleted_holding = crud_holding.remove(db=db, id=holding_id)
     return deleted_holding
+
+# --- AI Analysis Endpoint ---
+
+@router.post("/{portfolio_id}/analyze", response_model=AnalysisResult, summary="Get AI Analysis for Portfolio")
+async def get_portfolio_analysis(
+    *,
+    db: Session = Depends(get_db),
+    portfolio_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Triggers an AI-powered analysis for a specific portfolio.
+    """
+    portfolio = crud_portfolio.get(db=db, id=portfolio_id, user_id=current_user.id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+        
+    analysis_content = await ai_analyzer.analyze_portfolio(portfolio.holdings)
+    return AnalysisResult(content=analysis_content)
