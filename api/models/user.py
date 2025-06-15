@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.orm import validates
+from sqlalchemy.orm import validates, relationship
 
 from api.db.base_class import Base
 
@@ -12,6 +12,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    portfolios = relationship("Portfolio", back_populates="owner", cascade="all, delete-orphan")
 
     @validates("email")
     def validate_email(self, key, email):
