@@ -1,7 +1,7 @@
 import firebase_admin
-from firebase_admin import auth, credentials
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from firebase_admin import auth, credentials
 from sqlalchemy.orm import Session
 
 from api.core.config import settings
@@ -21,7 +21,10 @@ except ValueError as e:
     # with a non-functional auth system.
     print(f"Error initializing Firebase Admin SDK: {e}")
     # In a production scenario, you might want to raise a SystemExit
-    # raise SystemExit("Could not initialize Firebase Admin SDK. Check FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 env var.")
+    # raise SystemExit(
+    #     "Could not initialize Firebase Admin SDK. Check the "
+    #     "FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 environment variable."
+    # )
 
 
 # OAuth2 scheme for extracting the Bearer token

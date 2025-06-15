@@ -1,35 +1,42 @@
-import httpx
 from typing import List
-from api.models.holding import Holding
-from api.core.config import settings
 
-def format_holdings_for_prompt(holdings: List[Holding]) -> str:
-    """Formats a list of holding objects into a string for the AI prompt."""
+import httpx
+
+from api.core.config import settings
+from api.schemas.holding import CalculatedHolding
+
+
+def format_holdings_for_prompt(holdings: List[CalculatedHolding]) -> str:
+    """Formats a list of calculated holding objects into a string for the AI prompt."""
     if not holdings:
         return "The portfolio is empty."
-    
+
     formatted_holdings = "\n".join(
         [
-            f"- {h.quantity} shares of {h.symbol} purchased at ${h.purchase_price:.2f} on {h.purchase_date.strftime('%Y-%m-%d')}"
+            f"- {h.quantity:.4f} shares of {h.symbol} with an average cost basis of "
+            f"${h.average_cost_basis:.2f} per share."
             for h in holdings
         ]
     )
     return formatted_holdings
 
-async def analyze_portfolio(holdings: List[Holding]) -> str:
+
+async def analyze_portfolio(holdings: List[CalculatedHolding]) -> str:
     """
     Analyzes a portfolio's holdings using an external AI model via OpenRouter.
     """
     holdings_str = format_holdings_for_prompt(holdings)
-    
+
     system_prompt = (
-        "You are a helpful financial analyst. You will be given a list of stock holdings in a portfolio. "
-        "Provide a brief, high-level analysis of the portfolio's composition. "
-        "Focus on diversification across sectors, risk profile (e.g., is it aggressive, conservative, growth-focused?), "
-        "and mention any potential concentrations. Do not give financial advice, buy/sell recommendations, or "
-        "predict future performance. The analysis should be a single paragraph."
+        "You are a helpful financial analyst. You will be given a list of stock "
+        "holdings in a portfolio. Provide a brief, high-level analysis of the "
+        "portfolio's composition. Focus on diversification across sectors, risk "
+        "profile (e.g., is it aggressive, conservative, growth-focused?), and "
+        "mention any potential concentrations. Do not give financial advice, "
+        "buy/sell recommendations, or predict future performance. The analysis "
+        "should be a single paragraph."
     )
-    
+
     user_prompt = f"Here are the portfolio holdings:\n{holdings_str}"
 
     if not settings.OPENROUTER_API_KEY:
@@ -49,12 +56,12 @@ async def analyze_portfolio(holdings: List[Holding]) -> str:
                         {"role": "user", "content": user_prompt},
                     ],
                 },
-                timeout=30.0, # Set a timeout for the external request
+                timeout=30.0,  # Set a timeout for the external request
             )
-            response.raise_for_status()  # Raise an exception for 4xx or 5xx status codes
-            
-            data = await response.json() 
-            
+            response.raise_for_status()  # Raise an exception for 4xx or 5xx status
+
+            data = await response.json()
+
             return data["choices"][0]["message"]["content"]
         except httpx.RequestError as e:
             # Handle network-related errors

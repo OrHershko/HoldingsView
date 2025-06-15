@@ -1,31 +1,21 @@
-from pydantic import BaseModel, Field
-from datetime import date, datetime
 from typing import Optional
+from pydantic import BaseModel, Field
 
-# Shared properties
-class HoldingBase(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=10, description="Stock ticker symbol, e.g., AAPL")
-    quantity: float = Field(..., gt=0, description="Number of shares")
-    purchase_price: float = Field(..., gt=0, description="Price per share at purchase")
-    purchase_date: date
+class CalculatedHolding(BaseModel):
+    """
+    Represents the calculated state of a holding based on all its transactions.
+    This is not a database model.
+    """
+    symbol: str = Field(..., description="Stock ticker symbol")
+    quantity: float = Field(..., description="Total number of shares currently held")
+    average_cost_basis: float = Field(..., description="The average price paid per share for the current holding")
+    total_cost_basis: float = Field(..., description="Total cost of the current holding (quantity * average_cost_basis)")
 
-# Properties to receive on creation
-class HoldingCreate(HoldingBase):
-    pass
-
-# Properties to receive on update
-class HoldingUpdate(BaseModel):
-    symbol: Optional[str] = Field(None, min_length=1, max_length=10)
-    quantity: Optional[float] = Field(None, gt=0)
-    purchase_price: Optional[float] = Field(None, gt=0)
-    purchase_date: Optional[date] = None
-
-# Properties to return to client
-class HoldingRead(HoldingBase):
-    id: int
-    portfolio_id: int
-    created_at: datetime
-    updated_at: datetime
+    # Fields populated from market data service
+    current_price: Optional[float] = Field(None, description="Current market price per share")
+    market_value: Optional[float] = Field(None, description="Total current market value of the holding (quantity * current_price)")
+    unrealized_gain_loss: Optional[float] = Field(None, description="Total unrealized profit or loss")
+    unrealized_gain_loss_percent: Optional[float] = Field(None, description="Total unrealized profit or loss in percentage terms")
 
     class Config:
         from_attributes = True
