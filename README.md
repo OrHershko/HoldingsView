@@ -31,52 +31,24 @@ Holdings View is designed as a **modern web application** that runs in your brow
 - **Development**: `http://localhost:5173` (frontend) + `http://localhost:8000` (API)
 - **Production**: Deploy to your preferred web hosting platform
 
-## 🛠️ Technology Stack
+## ⚙️ Backend Development
 
-### Frontend
+### Technology Stack
 - **Core**:
-  - React 18.3
-  - TypeScript
-  - Vite
-
-- **UI Components**:
-  - Radix UI (comprehensive component library)
-  - Tailwind CSS
-  - Class Variance Authority
-  - Lucide React (icons)
-
-- **Data Visualization**:
-  - ApexCharts
-  - Lightweight Charts
-  - Recharts
-
-- **State Management & Data Fetching**:
-  - TanStack Query (React Query)
-
-- **Form Management**:
-  - React Hook Form
-  - Zod (validation)
-
-- **Authentication**:
-  - Firebase Authentication
-
-- **Other Frontend Libraries**:
-  - dnd-kit (drag and drop)
-  - date-fns (date manipulation)
-  - papaparse (CSV parsing)
-  - framer-motion (animations)
-
-### Backend
-- **Core**:
-  - FastAPI (Python)
+  - FastAPI (Python 3.11)
   - SQLAlchemy ORM
   - Alembic (database migrations)
-  - Docker
-
+  - Docker & Docker Compose
 - **Database**:
   - PostgreSQL
+- **Testing & Quality**:
+  - Pytest for unit and integration testing
+  - Ruff for linting and code formatting
+  - GitHub Actions for Continuous Integration (CI)
 
-- **Authentication**:
-  - Firebase Authentication integration
+### Continuous Integration
+This project uses GitHub Actions to ensure code quality. On every push to `main` or pull request, the following checks are automatically performed:
+- **Linting**: Code style and format are checked with `ruff`.
+- **Testing**: The full `pytest` suite is run against a PostgreSQL database to verify all features.
 
 ## 📦 Project Structure

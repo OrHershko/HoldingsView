@@ -1,0 +1,18 @@
+[tool.ruff]
+# Enable Pyflakes, pycodestyle, and isort rules.
+select = ["E", "F", "I"]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+# Exclude auto-generated files from linting
+exclude = [
+    ".git",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "alembic/versions/*.py",
+]
