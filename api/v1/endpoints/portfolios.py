@@ -191,7 +191,29 @@ def create_transaction(
     portfolio = crud_portfolio.get(db=db, id=portfolio_id, user_id=current_user.id)
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
-    
+
+    # --- Start of new validation logic ---
+    if transaction_in.transaction_type == "SELL":
+        # portfolio.transactions is available due to eager loading in crud_portfolio.get
+        calculated_holdings = calculate_holdings_from_transactions(portfolio.transactions)
+        
+        current_holding = next(
+            (h for h in calculated_holdings if h.symbol == transaction_in.symbol), None
+        )
+
+        current_quantity = current_holding.quantity if current_holding else 0.0
+
+        if current_quantity < transaction_in.quantity:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Insufficient quantity of {transaction_in.symbol}. "
+                    f"Current holding: {current_quantity}, "
+                    f"attempting to sell: {transaction_in.quantity}"
+                ),
+            )
+    # --- End of new validation logic ---
+
     transaction = crud_transaction.create_with_portfolio(
         db=db, obj_in=transaction_in, portfolio_id=portfolio_id
     )

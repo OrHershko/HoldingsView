@@ -95,6 +95,44 @@ def test_create_transaction_for_portfolio(authenticated_client: tuple[TestClient
     assert data["symbol"] == "TSLA"
     assert data["portfolio_id"] == portfolio.id
 
+def test_create_sell_transaction_insufficient_quantity(authenticated_client: tuple[TestClient, User], db: Session) -> None:
+    """
+    Tests that the API prevents selling more shares than owned.
+    """
+    client, current_user = authenticated_client
+    portfolio = create_random_portfolio(db, user_id=current_user.id)
+
+    # Add a BUY transaction for 10 shares
+    crud_transaction.create_with_portfolio(
+        db,
+        obj_in=TransactionCreate(
+            symbol="NVDA",
+            transaction_type="BUY",
+            quantity=10,
+            price=500,
+            transaction_date=date.today(),
+        ),
+        portfolio_id=portfolio.id,
+    )
+
+    # Attempt to SELL 11 shares, which should fail
+    sell_transaction_data = {
+        "symbol": "NVDA",
+        "transaction_type": "SELL",
+        "quantity": 11,
+        "price": 600.0,
+        "transaction_date": date.today().isoformat(),
+    }
+
+    response = client.post(
+        f"{settings.API_V1_STR}/portfolios/{portfolio.id}/transactions",
+        json=sell_transaction_data,
+    )
+
+    assert response.status_code == 400
+    data = response.json()
+    assert "Insufficient quantity" in data["detail"]
+
 def test_delete_transaction(authenticated_client: tuple[TestClient, User], db: Session) -> None:
     client, current_user = authenticated_client
     portfolio = create_random_portfolio(db, user_id=current_user.id)

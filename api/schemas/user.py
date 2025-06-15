@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
+from typing import Optional
 
 
 # Shared properties
@@ -12,14 +13,15 @@ class UserCreate(UserBase):
     firebase_uid: str
 
 
-# Properties to receive on user update (internal)
-class UserUpdate(UserBase):
-    is_active: bool | None = None
+# Properties to receive on user update
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = Field(None, max_length=100)
 
 
 # Properties to return to client
 class UserRead(UserBase):
     id: int
+    full_name: Optional[str] = None
     is_active: bool
     created_at: datetime
 
