@@ -63,8 +63,9 @@ jobs:
         run: pip install -r api/requirements.txt
       
       - name: Run Pytest
-        run: pytest
+        run: pytest api/tests/ -v
         env:
+          PYTHONPATH: ${{ github.workspace }}
           ENVIRONMENT: "testing"
           POSTGRES_SERVER: localhost
           POSTGRES_PORT: 5432
