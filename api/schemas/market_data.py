@@ -86,7 +86,7 @@ class EnrichedMarketData(BaseModel):
     historical_prices: List[OHLCV] = []
     technicals: TechnicalIndicators
     fundamentals: Fundamentals
-    trading_info: TradingInfo
+    trading_info: TradingInfo = Field(default_factory=TradingInfo)
     news: List[NewsArticle] = []
 
     class Config:

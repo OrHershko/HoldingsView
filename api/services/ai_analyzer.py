@@ -30,17 +30,17 @@ def format_stock_data_for_prompt(data: EnrichedMarketData) -> str:
 
     trading_status_parts = [f"Market is {ti.market_state}."]
     if ti.market_state == "REGULAR":
-        if ti.regular_market_change_percent:
-            change_str = f"{ti.regular_market_change_percent:.2f}%"
+        if ti.regular_market_change_percent is not None:
+            change_str = f"{ti.regular_market_change_percent*100:+.2f}%"
             trading_status_parts.append(f"Today's Change: {change_str}")
     elif ti.market_state == "PRE":
-        if ti.pre_market_price and ti.pre_market_change_percent:
-            change_str = f"{ti.pre_market_change_percent:.2f}%"
-            trading_status_parts.append(f"Pre-Market: ${ti.pre_market_price} ({change_str})")
+        if ti.pre_market_price is not None and ti.pre_market_change_percent is not None:
+            change_str = f"{ti.pre_market_change_percent*100:+.2f}%"
+            trading_status_parts.append(f"Pre-Market: ${ti.pre_market_price:.2f} ({change_str})")
     elif ti.market_state == "POST":
-        if ti.post_market_price and ti.post_market_change_percent:
-            change_str = f"{ti.post_market_change_percent:.2f}%"
-            trading_status_parts.append(f"Post-Market: ${ti.post_market_price} ({change_str})")
+        if ti.post_market_price is not None and ti.post_market_change_percent is not None:
+            change_str = f"{ti.post_market_change_percent*100:+.2f}%"
+            trading_status_parts.append(f"Post-Market: ${ti.post_market_price:.2f} ({change_str})")
     trading_status_str = " ".join(trading_status_parts)
 
     valuation_list: list[str] = []
@@ -141,7 +141,7 @@ async def analyze_portfolio(holdings: List[CalculatedHolding]) -> str:
         )
         return data["choices"][0]["message"]["content"]
     except OpenRouterError as e:
-        return str(e)
+        return f"Received an unexpected response from the AI service: {e}"
     except (KeyError, IndexError) as e:
         return f"Received an unexpected response from the AI service: {e}"
 
