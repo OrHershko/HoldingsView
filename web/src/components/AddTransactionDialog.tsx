@@ -7,47 +7,64 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAddTransaction } from '@/hooks/useAppMutations';
+import { useAddTransactionWithPortfolioCreation } from '@/hooks/useAppMutations';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { TransactionCreate } from '@/types/api';
+import { TransactionCreate, EnrichedHolding } from '@/types/api';
 
-const transactionSchema = z.object({
-  symbol: z.string().min(1, "Symbol is required.").max(10),
+const getTransactionSchema = (holdings: EnrichedHolding[]) => z.object({
+  symbol: z.string().min(1, "Symbol is required.").max(10).trim().toUpperCase(),
   transaction_type: z.enum(["BUY", "SELL"]),
-  quantity: z.coerce.number().min(0.0001, "Quantity must be greater than 0."),
+  quantity: z.coerce.number().min(0.000001, "Quantity must be greater than 0."),
   price: z.coerce.number().min(0.01, "Price must be greater than 0."),
   transaction_date: z.date({ required_error: "Transaction date is required." }),
+}).superRefine((data, ctx) => {
+  if (data.transaction_type === "SELL" && holdings && holdings.length > 0) {
+    const holding = holdings.find(h => h.symbol === data.symbol);
+    const currentQuantity = holding?.quantity || 0;
+    if (data.quantity > currentQuantity) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Cannot sell more than you own. You have ${currentQuantity} shares.`,
+        path: ["quantity"],
+      });
+    }
+  }
 });
 
-type TransactionFormData = z.infer<typeof transactionSchema>;
+type TransactionFormData = z.infer<ReturnType<typeof getTransactionSchema>>;
 
 interface AddTransactionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  portfolioId: number | undefined;
+  portfolioId?: number;
+  holdings: EnrichedHolding[];
 }
 
-const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onClose, portfolioId }) => {
-  const addTransactionMutation = useAddTransaction();
+const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onClose, portfolioId, holdings }) => {
+  const addTransactionMutation = useAddTransactionWithPortfolioCreation();
 
   const form = useForm<TransactionFormData>({
-    resolver: zodResolver(transactionSchema),
+    resolver: zodResolver(getTransactionSchema(holdings || [])),
     defaultValues: {
       symbol: "",
       transaction_type: "BUY",
-      quantity: 0,
-      price: 0,
+      quantity: 1,
+      price: 1,
       transaction_date: new Date(),
     },
   });
 
-  const onSubmit = (data: TransactionFormData) => {
-    if (!portfolioId) return;
+  // Update form resolver when holdings change
+  React.useEffect(() => {
+    form.clearErrors();
+    // The resolver will be updated automatically on next validation
+  }, [holdings, form]);
 
+  const onSubmit = (data: TransactionFormData) => {
     const formattedData: TransactionCreate = {
       symbol: data.symbol.toUpperCase(),
       transaction_type: data.transaction_type,
@@ -60,9 +77,22 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
       onSuccess: () => {
         form.reset();
         onClose();
-      }
+      },
     });
   };
+  
+  // Reset form when dialog opens
+  React.useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        symbol: "",
+        transaction_type: "BUY",
+        quantity: 1,
+        price: 1,
+        transaction_date: new Date(),
+      });
+    }
+  }, [isOpen, form]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

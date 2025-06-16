@@ -22,7 +22,7 @@ if settings.ENVIRONMENT == "development" and settings.DISABLE_AUTH_FOR_DEV:
 
 
 if settings.BACKEND_CORS_ORIGINS:
-    origins = [str(origin).strip() for origin in settings.BACKEND_CORS_ORIGINS.split(" ")]
+    origins = [str(origin).strip() for origin in settings.BACKEND_CORS_ORIGINS.split(",")]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,

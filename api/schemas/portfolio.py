@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from .holding import CalculatedHolding
+from .transaction import TransactionRead
 
 # Shared properties
 class PortfolioBase(BaseModel):
@@ -31,6 +32,7 @@ class PortfolioRead(PortfolioBase):
 # Properties to return to client with holdings and analysis
 class PortfolioReadWithHoldings(PortfolioRead):
     holdings: List[CalculatedHolding] = []
+    transactions: List[TransactionRead] = []
     
     # Portfolio-level summary
     total_market_value: Optional[float] = Field(None, description="Total market value of all holdings in the portfolio")

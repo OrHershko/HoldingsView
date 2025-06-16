@@ -1,5 +1,7 @@
 import base64
 import json
+import os
+from pathlib import Path
 from typing import Optional
 
 from pydantic_settings import BaseSettings
@@ -18,8 +20,10 @@ class Settings(BaseSettings):
     # WARNING: This should NEVER be True in a testing or production environment.
     DISABLE_AUTH_FOR_DEV: bool = False
 
-    # Redis URL for Celery and Caching
-    REDIS_URL: str = "redis://redis:6379/0"
+    # Redis URL for Celery and Caching (Docker service name)
+    REDIS_URL_DOCKER: str = "redis://redis:6379/0"
+    # Redis URL for local development (localhost)
+    REDIS_URL_LOCAL: str = "redis://localhost:6379/0"
 
     # Local Database Configuration
     POSTGRES_SERVER: str
@@ -39,6 +43,17 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: str
     # OpenRouter
     OPENROUTER_API_KEY: str
+
+    @property
+    def REDIS_URL(self) -> str:
+        """Return appropriate Redis URL based on environment and deployment"""
+        # Check if we're running inside Docker by looking for Docker-specific environment variables
+        # or by checking if the redis hostname resolves
+        if os.getenv("DOCKER_CONTAINER") or self.ENVIRONMENT.lower() == "production":
+            return self.REDIS_URL_DOCKER
+        else:
+            # For local development, use localhost
+            return self.REDIS_URL_LOCAL
 
     @property
     def DATABASE_URL(self) -> str:
@@ -71,6 +86,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore extra fields instead of forbidding them
 
 
 settings = Settings()

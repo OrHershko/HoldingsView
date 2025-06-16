@@ -9,6 +9,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
+import apiClient from '@/services/apiService';
 
 interface AuthContextProps {
   currentUser: User | null;
@@ -38,6 +39,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, displayName: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, { displayName });
+
+    // After profile is created in Firebase, we need to get a token and update our own backend.
+    const token = await userCredential.user.getIdToken();
+    // Use a temporary apiClient instance with the new token to update the user profile
+    // This ensures the correct token is used immediately after signup.
+    await apiClient.put('/users/me', { full_name: displayName }, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    // Manually update the currentUser state to reflect the new display name
+    // as onAuthStateChanged might not pick it up immediately.
+    setCurrentUser(auth.currentUser);
   };
 
   // Login function
@@ -58,7 +70,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update user profile
   const updateUserProfile = async (displayName: string) => {
     if (auth.currentUser) {
+      // Update firebase profile
       await updateProfile(auth.currentUser, { displayName });
+      // Update our backend
+      await apiClient.put('/users/me', { full_name: displayName });
+      // Manually update state to trigger re-render
+      setCurrentUser(auth.currentUser);
     }
   };
 
@@ -84,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

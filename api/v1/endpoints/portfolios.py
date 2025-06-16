@@ -1,4 +1,3 @@
-
 from typing import List, Literal
 from datetime import date, timedelta
 
@@ -127,6 +126,7 @@ async def read_portfolio(
         "created_at": portfolio.created_at,
         "updated_at": portfolio.updated_at,
         "holdings": enriched_holdings,
+        "transactions": portfolio.transactions,
         "total_market_value": total_market_value,
         "total_cost_basis": total_cost_basis,
         "total_unrealized_gain_loss": total_unrealized_gain_loss,
