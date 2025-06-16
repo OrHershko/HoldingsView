@@ -17,14 +17,19 @@ def calculate_indicators(df: pd.DataFrame) -> TechnicalIndicators:
         return TechnicalIndicators()
 
     # Calculate indicators using pandas_ta. It appends columns to the DataFrame.
-    df.ta.sma(length=20, append=True)
-    df.ta.sma(length=50, append=True)
-    df.ta.sma(length=100, append=True)
-    df.ta.sma(length=150, append=True)
-    df.ta.sma(length=200, append=True)
-    df.ta.rsi(length=14, append=True)
-    df.ta.macd(fast=12, slow=26, signal=9, append=True)
-    df.ta.bbands(length=20, std=2, append=True)
+    try:
+        df.ta.sma(length=20, append=True)
+        df.ta.sma(length=50, append=True)
+        df.ta.sma(length=100, append=True)
+        df.ta.sma(length=150, append=True)
+        df.ta.sma(length=200, append=True)
+        df.ta.rsi(length=14, append=True)
+        df.ta.macd(fast=12, slow=26, signal=9, append=True)
+        df.ta.bbands(length=20, std=2, append=True)
+    except Exception as e:
+        # Log and return empty indicators if pandas_ta fails for any reason
+        print(f"Technical indicator calculation failed: {e}")
+        return TechnicalIndicators()
     
     # Get the last row of the DataFrame which contains the latest indicator values
     latest_indicators = df.iloc[-1]

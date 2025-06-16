@@ -20,7 +20,15 @@ def get_task_status(task_id: str):
     """
     task_result = AsyncResult(task_id, app=celery_app)
     
-    result = task_result.result if task_result.ready() else None
+    # Safely serialize the task result.
+    # Celery may return exception objects (e.g., ``NotRegistered``) that Pydantic
+    # cannot natively serialize. Convert any Exception instance to its string
+    # representation to avoid ``PydanticSerializationError``.
+    if task_result.ready():
+        _raw_result = task_result.result
+        result = str(_raw_result) if isinstance(_raw_result, Exception) else _raw_result
+    else:
+        result = None
     
     if task_result.state == 'FAILURE':
         # If the task failed, the result contains the exception.

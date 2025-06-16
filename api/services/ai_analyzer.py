@@ -1,9 +1,10 @@
 from typing import List
+import json
 
-import httpx
-
-from api.core.config import settings
 from api.schemas.holding import CalculatedHolding
+from api.schemas.market_data import EnrichedMarketData
+from api.schemas.ai import TradingStrategy
+from api.services.openrouter_client import chat_completion, OpenRouterError
 
 
 def format_holdings_for_prompt(holdings: List[CalculatedHolding]) -> str:
@@ -19,6 +20,97 @@ def format_holdings_for_prompt(holdings: List[CalculatedHolding]) -> str:
         ]
     )
     return formatted_holdings
+
+
+def format_stock_data_for_prompt(data: EnrichedMarketData) -> str:
+    """Formats an EnrichedMarketData object into a string for the AI prompt."""
+    f = data.fundamentals
+    t = data.technicals
+    ti = data.trading_info
+
+    trading_status_parts = [f"Market is {ti.market_state}."]
+    if ti.market_state == "REGULAR":
+        if ti.regular_market_change_percent:
+            change_str = f"{ti.regular_market_change_percent:.2f}%"
+            trading_status_parts.append(f"Today's Change: {change_str}")
+    elif ti.market_state == "PRE":
+        if ti.pre_market_price and ti.pre_market_change_percent:
+            change_str = f"{ti.pre_market_change_percent:.2f}%"
+            trading_status_parts.append(f"Pre-Market: ${ti.pre_market_price} ({change_str})")
+    elif ti.market_state == "POST":
+        if ti.post_market_price and ti.post_market_change_percent:
+            change_str = f"{ti.post_market_change_percent:.2f}%"
+            trading_status_parts.append(f"Post-Market: ${ti.post_market_price} ({change_str})")
+    trading_status_str = " ".join(trading_status_parts)
+
+    valuation_list: list[str] = []
+    if f.pe_ratio:
+        valuation_list.append(f"- P/E Ratio (TTM): {f.pe_ratio:.2f}")
+    if f.forward_pe_ratio:
+        valuation_list.append(f"- Forward P/E Ratio: {f.forward_pe_ratio:.2f}")
+    if f.price_to_book_ratio:
+        valuation_list.append(f"- Price-to-Book Ratio: {f.price_to_book_ratio:.2f}")
+    if f.price_to_sales_ratio:
+        valuation_list.append(f"- Price-to-Sales Ratio (TTM): {f.price_to_sales_ratio:.2f}")
+
+    financials_list: list[str] = []
+    if f.market_cap:
+        financials_list.append(f"- Market Cap: ${f.market_cap:,}")
+    if f.earnings_date:
+        financials_list.append(f"- Next Earnings: {f.earnings_date.strftime('%Y-%m-%d')}")
+    if f.profit_margins:
+        financials_list.append(f"- Profit Margin: {f.profit_margins*100:.2f}%")
+    if f.return_on_equity:
+        financials_list.append(f"- Return on Equity: {f.return_on_equity*100:.2f}%")
+
+    analyst_list: list[str] = []
+    if f.analyst_recommendation:
+        analyst_list.append(f"- Consensus: {f.analyst_recommendation.upper()}")
+    if f.analyst_target_price:
+        analyst_list.append(f"- Target Price: ${f.analyst_target_price:.2f}")
+    if f.number_of_analyst_opinions:
+        analyst_list.append(f"- # of Analysts: {f.number_of_analyst_opinions}")
+
+    technicals_list: list[str] = []
+    if t.sma_50 and t.sma_200:
+        trend = "Uptrend" if t.sma_50 > t.sma_200 else "Downtrend"
+        technicals_list.append(f"- 50-Day vs 200-Day SMA: {trend}")
+    if f.week_52_high and f.week_52_low:
+        technicals_list.append(f"- 52-Week Range: ${f.week_52_low:.2f} - ${f.week_52_high:.2f}")
+    if t.rsi_14:
+        rsi_condition = "Overbought" if t.rsi_14 > 70 else "Oversold" if t.rsi_14 < 30 else "Neutral"
+        technicals_list.append(f"- RSI (14): {t.rsi_14:.2f} ({rsi_condition})")
+    
+    news_str = "\n".join([f"- {n.title} ({n.publisher})" for n in data.news[:5]]) if data.news else "N/A"
+
+    # Pre-computed sections to avoid backslashes in f-string expressions
+    valuation_str = "\n".join(valuation_list) if valuation_list else "N/A"
+    financials_str = "\n".join(financials_list) if financials_list else "N/A"
+    analyst_str = "\n".join(analyst_list) if analyst_list else "N/A"
+    technicals_str = "\n".join(technicals_list) if technicals_list else "N/A"
+
+    prompt_data = f"""
+Company: {data.short_name} ({data.symbol})
+Current Price: ${data.current_price:.2f}
+{trading_status_str}
+Description: {f.description}
+
+--- Valuation ---
+{valuation_str}
+
+--- Financials & Outlook ---
+{financials_str}
+
+--- Analyst Ratings ---
+{analyst_str}
+
+--- Technicals ---
+{technicals_str}
+
+--- News ---
+{news_str}
+"""
+    return prompt_data.strip()
 
 
 async def analyze_portfolio(holdings: List[CalculatedHolding]) -> str:
@@ -39,33 +131,107 @@ async def analyze_portfolio(holdings: List[CalculatedHolding]) -> str:
 
     user_prompt = f"Here are the portfolio holdings:\n{holdings_str}"
 
-    if not settings.OPENROUTER_API_KEY:
-        return "AI analysis is not configured. Missing OPENROUTER_API_KEY."
+    try:
+        data = await chat_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            timeout=30.0,
+        )
+        return data["choices"][0]["message"]["content"]
+    except OpenRouterError as e:
+        return str(e)
+    except (KeyError, IndexError) as e:
+        return f"Received an unexpected response from the AI service: {e}"
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                url="https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                },
-                json={
-                    "model": "openai/gpt-3.5-turbo",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                },
-                timeout=30.0,  # Set a timeout for the external request
-            )
-            response.raise_for_status()  # Raise an exception for 4xx or 5xx status
 
-            data = await response.json()
+async def analyze_stock_deep_dive(data: EnrichedMarketData) -> str:
+    """
+    Performs a deep-dive analysis on a stock using its enriched data.
+    """
+    formatted_data = format_stock_data_for_prompt(data)
 
-            return data["choices"][0]["message"]["content"]
-        except httpx.RequestError as e:
-            # Handle network-related errors
-            return f"An error occurred while contacting the AI service: {e}"
-        except (KeyError, IndexError) as e:
-            # Handle unexpected response structure
-            return f"Received an unexpected response from the AI service: {e}"
+    system_prompt = (
+        "You are an expert financial analyst providing a detailed, balanced, and objective "
+        "analysis of a single stock for an investor. You will be given a block of data "
+        "containing the company's description, fundamental metrics, technical indicators, "
+        "and recent news. Your task is to synthesize this information into a comprehensive "
+        "narrative report. Structure your response using the following markdown format:\n\n"
+        "### 📈 Executive Summary\n"
+        "A brief, high-level overview of the company and its current standing.\n\n"
+        "### ✅ Strengths\n"
+        "Bulleted list of positive aspects based on the provided data (e.g., strong fundamentals, "
+        "positive technical momentum, good news).\n\n"
+        "### ⚠️ Weaknesses\n"
+        "Bulleted list of negative aspects or risks (e.g., high valuation, poor technicals, "
+        "negative news sentiment).\n\n"
+        "### 🔍 Opportunities\n"
+        "Bulleted list of potential future upsides that may not be fully reflected in the "
+        "current data (e.g., industry growth, new products mentioned in summary).\n\n"
+        "### 📉 Threats\n"
+        "Bulleted list of external or internal risks that could negatively impact the stock "
+        "(e.g., competition, regulatory changes, macroeconomic factors).\n\n"
+        "Provide clear, concise points and justify each with evidence from the data. Do not "
+        "give direct financial advice, price targets, or 'buy/sell/hold' recommendations."
+    )
+
+    user_prompt = f"Please provide a deep-dive analysis for the following stock based on this data:\n\n{formatted_data}"
+
+    try:
+        data = await chat_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            timeout=60.0,
+        )
+        return data["choices"][0]["message"]["content"]
+    except OpenRouterError as e:
+        raise ConnectionError(str(e)) from e
+    except (KeyError, IndexError) as e:
+        return f"Received an unexpected response from the AI service: {e}"
+
+
+async def generate_trading_strategy(data: EnrichedMarketData) -> TradingStrategy:
+    """
+    Generates an actionable trading strategy using an AI model.
+    """
+    formatted_data = format_stock_data_for_prompt(data)
+    
+    system_prompt = f"""
+You are a quantitative trading analyst. Your task is to devise a short-term (1-4 week) 
+trading strategy based on the provided technical indicators and recent news.
+
+YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT THAT CONFORMS TO THIS PYDANTIC SCHEMA:
+{{
+  "strategy_type": "'bullish' | 'bearish' | 'neutral-range'",
+  "confidence": "'high' | 'medium' | 'low'",
+  "entry_price_suggestion": "float | null",
+  "stop_loss_suggestion": "float | null",
+  "take_profit_suggestion": "float | null",
+  "rationale": "string"
+}}
+Analyze the data and provide concrete, actionable numbers. For the rationale, explain exactly
+which technical indicators (e.g., RSI, MACD, SMAs) and news items led to your conclusion.
+Be concise and direct.
+"""
+    user_prompt = f"Generate a trading strategy for the following stock data:\n\n{formatted_data}"
+
+    try:
+        data = await chat_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            timeout=45.0,
+            extra_params={"response_format": {"type": "json_object"}},
+        )
+
+        strategy_json_str = data["choices"][0]["message"]["content"]
+
+        strategy_data = json.loads(strategy_json_str)
+        print(strategy_data)
+        return TradingStrategy(**strategy_data)
+    except OpenRouterError as e:
+        raise ConnectionError(str(e)) from e

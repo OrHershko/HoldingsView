@@ -7,6 +7,7 @@ from api.schemas.market_data import (
     Fundamentals,
     NewsArticle,
     OHLCV,
+    TradingInfo,
 )
 from api.services.technical_indicator_service import calculate_indicators
 
@@ -25,11 +26,12 @@ async def get_enriched_market_data(symbol: str) -> EnrichedMarketData:
     """
 
     def fetch_and_process():
-        # yfinance.Ticker is a convenient way to get all data for a symbol
         ticker = yf.Ticker(symbol)
+
+        if not ticker:
+            raise ValueError(f"Could not find ticker for symbol: {symbol}")
         
         # 1. Fetch historical price data for technical analysis
-        # We fetch 1.5 years of data to ensure enough points for a 200-day SMA.
         hist_df = ticker.history(period="18mo")
         if hist_df.empty:
             raise ValueError(f"Could not fetch historical data for symbol: {symbol}")
@@ -58,40 +60,86 @@ async def get_enriched_market_data(symbol: str) -> EnrichedMarketData:
             for index, row in hist_df.iterrows()
         ]
         
-        # Assemble fundamentals, safely getting values from the info dict
+        # Extract earnings timestamp safely
+        earnings_timestamp = info.get("earningsTimestamp")
+        
+        # Assemble fundamentals with additional fields
         fundamentals = Fundamentals(
             market_cap=info.get("marketCap"),
-            pe_ratio=info.get("trailingPE"),
-            eps=info.get("trailingEps"),
-            dividend_yield=info.get("dividendYield"),
-            beta=info.get("beta"),
             sector=info.get("sector"),
             industry=info.get("industry"),
+            description=info.get("longBusinessSummary"),
+            pe_ratio=info.get("trailingPE"),
+            forward_pe_ratio=info.get("forwardPE"),
+            price_to_book_ratio=info.get("priceToBook"),
+            price_to_sales_ratio=info.get("priceToSalesTrailing12Months"),
+            eps=info.get("trailingEps"),
+            dividend_yield=info.get("dividendYield"),
+            payout_ratio=info.get("payoutRatio"),
+            beta=info.get("beta"),
+            profit_margins=info.get("profitMargins"),
+            return_on_equity=info.get("returnOnEquity"),
+            total_debt=info.get("totalDebt"),
+            total_cash=info.get("totalCash"),
+            free_cashflow=info.get("freeCashflow"),
             week_52_high=info.get("fiftyTwoWeekHigh"),
             week_52_low=info.get("fiftyTwoWeekLow"),
-            description=info.get("longBusinessSummary"),
+            earnings_date=datetime.fromtimestamp(earnings_timestamp) if earnings_timestamp else None,
+            analyst_recommendation=info.get("recommendationKey"),
+            analyst_target_price=info.get("targetMeanPrice"),
+            number_of_analyst_opinions=info.get("numberOfAnalystOpinions"),
         )
         
-        # Format news articles
-        formatted_news = [
-            NewsArticle(
-                title=item.get("title"),
-                publisher=item.get("publisher"),
-                link=item.get("link"),
-                provider_publish_time=datetime.fromtimestamp(item.get("providerPublishTime")),
-            )
-            for item in news if "providerPublishTime" in item
-        ]
+        # Populate trading information
+        trading_info = TradingInfo(
+            market_state=info.get("marketState"),
+            regular_market_change_percent=info.get("regularMarketChangePercent"),
+            pre_market_price=info.get("preMarketPrice"),
+            pre_market_change_percent=info.get("preMarketChangePercent"),
+            post_market_price=info.get("postMarketPrice"),
+            post_market_change_percent=info.get("postMarketChangePercent"),
+        )
         
-        # Assemble the final, enriched data object
+        # Format news items with error handling
+        formatted_news = []
+        for item in news:
+            try:
+                content = item.get("content", {})
+                
+                title = content.get("title")
+                publisher = content.get("provider", {}).get("displayName")
+                link = content.get("canonicalUrl", {}).get("url")
+                pub_date_str = content.get("pubDate")
+
+                if not all([title, publisher, link, pub_date_str]):
+                    continue
+
+                # Convert the ISO 8601 date string to a datetime object
+                # The .replace() handles the 'Z' (Zulu) timezone indicator.
+                publish_time = datetime.fromisoformat(pub_date_str.replace('Z', '+00:00'))
+
+                formatted_news.append(
+                    NewsArticle(
+                        title=title,
+                        publisher=publisher,
+                        link=link,
+                        provider_publish_time=publish_time,
+                    )
+                )
+            except (TypeError, KeyError, ValueError) as e:
+                print(f"Warning: Could not parse news item for {symbol}. Error: {e}. Item: {item}")
+                continue
+        
         return EnrichedMarketData(
             symbol=symbol.upper(),
-            current_price=hist_df.iloc[-1]["Close"], # Use last close as current price
+            short_name=info.get("shortName"),
+            long_name=info.get("longName"),
+            current_price=info.get("currentPrice") or hist_df.iloc[-1]["Close"],
             historical_prices=historical_prices,
             technicals=technicals,
             fundamentals=fundamentals,
+            trading_info=trading_info,
             news=formatted_news,
         )
 
-    # Run the synchronous yfinance blocking calls in a separate thread
     return await run_in_threadpool(fetch_and_process)
