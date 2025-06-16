@@ -14,3 +14,4 @@ class Portfolio(Base):
 
     owner = relationship("User", back_populates="portfolios")
     transactions = relationship("Transaction", back_populates="portfolio", cascade="all, delete-orphan")
+    snapshots = relationship("PortfolioSnapshot", back_populates="portfolio", cascade="all, delete-orphan")

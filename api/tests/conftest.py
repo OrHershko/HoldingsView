@@ -1,5 +1,8 @@
 import pytest
 from typing import Generator, Tuple
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -9,23 +12,21 @@ from sqlalchemy_utils import database_exists, create_database, drop_database
 from api.main import app
 from api.core.config import settings
 from api.db.base_class import Base
-from api.auth.firebase import get_db, get_current_user
+from api.auth.firebase import get_current_user, get_db
 from api.models.user import User
 from api.tests.utils.user import create_random_user
+from api.db.session import SessionLocal as GlobalSessionLocal
 
-# Set the environment to "testing" for all tests
 settings.ENVIRONMENT = "testing"
 
-# Create a new engine and session for the test database
 engine = create_engine(settings.DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Rebind the global SessionLocal used by background tasks to the test engine
+GlobalSessionLocal.configure(bind=engine)
+
 @pytest.fixture(scope="session", autouse=True)
 def db_setup_and_teardown():
-    """
-    Fixture to create the test database and schema for the entire test session,
-    and drop it afterwards.
-    """
     db_url = settings.DATABASE_URL
     if not database_exists(db_url):
         create_database(db_url)
@@ -38,47 +39,39 @@ def db_setup_and_teardown():
 
 
 def override_get_db():
-    """
-    Dependency override for getting a DB session in tests.
-    """
     try:
         db = TestingSessionLocal()
         yield db
     finally:
         db.close()
 
-# Apply the override to the FastAPI app for all tests
 app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(scope="function")
 def db() -> Generator[Session, None, None]:
     """
-    Fixture to provide a database session to a single test function.
-    Resets the DB after the test by deleting all data from tables.
+    Provides a database session fixture for tests.
     """
     db_session = TestingSessionLocal()
-    yield db_session
-    for table in reversed(Base.metadata.sorted_tables):
-        db_session.execute(table.delete())
-    db_session.commit()
-    db_session.close()
+    
+    try:
+        yield db_session
+    finally:
+        db_session.close()
+        cleanup_session = TestingSessionLocal()
+        for table in reversed(Base.metadata.sorted_tables):
+            cleanup_session.execute(table.delete())
+        cleanup_session.commit()
+        cleanup_session.close()
 
 
 @pytest.fixture(scope="module")
 def client() -> Generator[TestClient, None, None]:
-    """
-    Fixture to provide a standard TestClient instance.
-    """
     with TestClient(app) as c:
         yield c
 
 @pytest.fixture(scope="function")
 def authenticated_client(db: Session) -> Generator[Tuple[TestClient, User], None, None]:
-    """
-    Fixture that provides an authenticated TestClient and the user object.
-    It creates a user for the scope of the test function, and overrides 
-    the `get_current_user` dependency to simulate that this user is making requests.
-    """
     test_user = create_random_user(db)
 
     def get_current_user_override() -> User:
@@ -87,7 +80,7 @@ def authenticated_client(db: Session) -> Generator[Tuple[TestClient, User], None
     app.dependency_overrides[get_current_user] = get_current_user_override
     
     with TestClient(app) as c:
-        yield c, test_user # Yield both client and user
+        yield c, test_user
 
-    # Clean up the override
-    del app.dependency_overrides[get_current_user]
+    if get_current_user in app.dependency_overrides:
+        del app.dependency_overrides[get_current_user]

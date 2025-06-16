@@ -1,13 +1,16 @@
-from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Literal
+from datetime import date, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from api.auth.firebase import get_current_user, get_db
-from api.crud import crud_portfolio, crud_transaction
+from api.crud import crud_portfolio, crud_transaction, crud_portfolio_snapshot
 from api.models.user import User
 from api.schemas.ai import AnalysisResult
 from api.schemas.holding import CalculatedHolding
+from api.schemas.performance import PortfolioPerformanceData
 from api.schemas.portfolio import (
     PortfolioCreate,
     PortfolioRead,
@@ -17,6 +20,8 @@ from api.schemas.portfolio import (
 from api.schemas.transaction import TransactionCreate, TransactionRead
 from api.services import ai_analyzer, market_data_service
 from api.services.portfolio_analyzer import calculate_holdings_from_transactions
+from api.tasks import create_portfolio_snapshot
+from api.core.config import settings
 
 router = APIRouter()
 
@@ -191,7 +196,29 @@ def create_transaction(
     portfolio = crud_portfolio.get(db=db, id=portfolio_id, user_id=current_user.id)
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
-    
+
+    # --- Start of new validation logic ---
+    if transaction_in.transaction_type == "SELL":
+        # portfolio.transactions is available due to eager loading in crud_portfolio.get
+        calculated_holdings = calculate_holdings_from_transactions(portfolio.transactions)
+        
+        current_holding = next(
+            (h for h in calculated_holdings if h.symbol == transaction_in.symbol), None
+        )
+
+        current_quantity = current_holding.quantity if current_holding else 0.0
+
+        if current_quantity < transaction_in.quantity:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Insufficient quantity of {transaction_in.symbol}. "
+                    f"Current holding: {current_quantity}, "
+                    f"attempting to sell: {transaction_in.quantity}"
+                ),
+            )
+    # --- End of new validation logic ---
+
     transaction = crud_transaction.create_with_portfolio(
         db=db, obj_in=transaction_in, portfolio_id=portfolio_id
     )
@@ -255,3 +282,75 @@ async def get_portfolio_analysis(
 
     analysis_content = await ai_analyzer.analyze_portfolio(calculated_holdings)
     return AnalysisResult(content=analysis_content)
+
+
+# --- Performance Endpoint ---
+@router.get(
+    "/{portfolio_id}/performance",
+    response_model=PortfolioPerformanceData,
+    summary="Get Historical Portfolio Performance"
+)
+def get_portfolio_performance(
+    *,
+    db: Session = Depends(get_db),
+    portfolio_id: int,
+    timespan: Literal["1M", "3M", "6M", "1Y", "ALL"] = Query("1Y", description="The time range for the performance data."),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Retrieve the historical performance data for a specific portfolio.
+    
+    This endpoint returns a time-series of daily snapshots, each containing the
+    total market value and cost basis, ready for charting.
+    """
+    portfolio = crud_portfolio.get(db=db, id=portfolio_id, user_id=current_user.id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    end_date = date.today()
+    if timespan == "1M":
+        start_date = end_date - timedelta(days=30)
+    elif timespan == "3M":
+        start_date = end_date - timedelta(days=90)
+    elif timespan == "6M":
+        start_date = end_date - timedelta(days=180)
+    elif timespan == "1Y":
+        start_date = end_date - timedelta(days=365)
+    else: # ALL
+        start_date = date.min
+
+    snapshots = crud_portfolio_snapshot.get_snapshots_by_portfolio(
+        db=db, portfolio_id=portfolio_id, start_date=start_date, end_date=end_date
+    )
+
+    return PortfolioPerformanceData(
+        portfolio_id=portfolio_id,
+        performance_history=snapshots
+    )
+
+
+# --- Debug Endpoint ---
+@router.post(
+    "/{portfolio_id}/trigger-snapshot",
+    summary="[DEBUG] Manually trigger a snapshot calculation",
+    include_in_schema=settings.ENVIRONMENT == "development" # Only show in docs for dev
+)
+def trigger_snapshot_for_portfolio(
+    *,
+    db: Session = Depends(get_db),
+    portfolio_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    A debug endpoint to manually trigger the background task for creating
+    a portfolio snapshot. Useful for testing without waiting for the nightly job.
+    """
+    if settings.ENVIRONMENT != "development":
+        raise HTTPException(status_code=403, detail="This endpoint is only available in development.")
+    
+    portfolio = crud_portfolio.get(db=db, id=portfolio_id, user_id=current_user.id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    task = create_portfolio_snapshot.delay(portfolio_id)
+    return {"message": "Snapshot creation task dispatched.", "task_id": task.id}
