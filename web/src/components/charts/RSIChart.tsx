@@ -3,8 +3,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, R
 import { Card } from '@/components/ui/card';
 
 interface RSIChartProps {
-  data: any[];
-  CustomTooltip: React.FC<any>;
+  data: unknown[];
+  CustomTooltip: React.FC<unknown>;
 }
 
 const RSIChart: React.FC<RSIChartProps> = ({ data, CustomTooltip }) => {

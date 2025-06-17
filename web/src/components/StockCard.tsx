@@ -17,37 +17,58 @@ const StockCard: React.FC<StockCardProps> = ({
   isSelected,
 }) => {
   const isPositiveGain = (holding.unrealized_gain_loss || 0) >= 0;
+  const currentPrice = holding.current_price || 0;
+  const marketValue = holding.market_value || 0;
+  const gainLoss = holding.unrealized_gain_loss || 0;
+  const gainLossPercent = holding.unrealized_gain_loss_percent || 0;
 
   return (
-    <div className="min-w-[320px]">
-      <Card
-        onClick={onClick}
-        className={cn(
-          "bg-gray-800 hover:bg-gray-700/50 transition-colors duration-200 flex items-stretch border cursor-pointer",
-          isSelected ? "border-blue-500" : "border-gray-700"
-        )}
-      >
-        <div className="flex-grow text-left p-3">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-semibold text-lg">{holding.symbol}</h3>
-              <p className="text-xs text-gray-400">{holding.quantity.toLocaleString()} shares</p>
-            </div>
-            <div className="text-right">
-                <p className="font-semibold text-lg">
-                    ${(holding.market_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <div className={`text-sm flex items-center justify-end ${isPositiveGain ? 'text-green-500' : 'text-red-500'}`}>
-                  {isPositiveGain ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-                  <span>
-                    {(holding.unrealized_gain_loss || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                  </span>
-                </div>
+    <Card
+      onClick={onClick}
+      className={cn(
+        "bg-gray-800 hover:bg-gray-700/50 active:bg-gray-700 transition-colors duration-200 cursor-pointer touch-manipulation",
+        "border-2 hover:border-gray-600 active:scale-[0.98]",
+        isSelected ? "border-blue-500 bg-blue-950/20" : "border-gray-700"
+      )}
+    >
+      <div className="p-4 md:p-5">
+        {/* Main content layout */}
+        <div className="flex justify-between items-start gap-3">
+          {/* Left side - Symbol and quantity */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-lg md:text-xl text-white truncate">
+              {holding.symbol}
+            </h3>
+            <p className="text-xs md:text-sm text-gray-400 mt-0.5">
+              {holding.quantity.toLocaleString()} shares @ ${currentPrice.toFixed(2)}
+            </p>
+          </div>
+
+          {/* Right side - Values */}
+          <div className="text-right flex-shrink-0">
+            <p className="font-bold text-lg md:text-xl text-white">
+              ${marketValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <div className={cn(
+              "text-sm md:text-base flex items-center justify-end gap-1 mt-0.5",
+              isPositiveGain ? 'text-green-400' : 'text-red-400'
+            )}>
+              {isPositiveGain ? (
+                <TrendingUp className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+              ) : (
+                <TrendingDown className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+              )}
+              <span className="font-medium">
+                {isPositiveGain ? '+' : ''}${Math.abs(gainLoss).toFixed(2)}
+              </span>
+              <span className="text-xs md:text-sm opacity-80">
+                ({isPositiveGain ? '+' : ''}{gainLossPercent.toFixed(2)}%)
+              </span>
             </div>
           </div>
         </div>
-      </Card>
-    </div>
+      </div>
+    </Card>
   );
 };
 

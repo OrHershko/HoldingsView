@@ -14,6 +14,7 @@ interface StockChartProps {
   interval: string;
   onPeriodChange: (newPeriod: string) => void;
   onIntervalChange: (newInterval: string) => void;
+  containerWidth: number;
 }
 
 const periods = [
@@ -55,7 +56,7 @@ const indicators = [
   { key: 'rsi', label: 'RSI' },
 ];
 
-const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, onPeriodChange, onIntervalChange }) => {
+const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, onPeriodChange, onIntervalChange, containerWidth }) => {
   const isPositive = (stockData.trading_info?.regular_market_change_percent || 0) >= 0;
   
   const isIntradayInterval = (interval: string) => {
@@ -258,10 +259,10 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
       sma_200: sma200[idx],
       rsi_14: rsi14[idx],
     })) as unknown as ChartDataPoint[];
-  }, [interval]);
+  }, [stockData.historical_prices]);
 
   return (
-    <Card className="bg-gray-800 border-gray-700 text-white">
+    <Card className="bg-gray-800 border-gray-700 text-white w-full">
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="text-2xl">{stockData.short_name || stockData.symbol}</CardTitle>
@@ -278,77 +279,85 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
           data={chartData}
           visibleIndicators={visibleIndicators}
           timeframe={period}
+          containerWidth={containerWidth}
         />
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pt-4 mt-2 border-t border-gray-700">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
-                <CalendarRange className="mr-2 h-4 w-4" />
-                Period
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuRadioGroup value={period} onValueChange={handlePeriodChange}>
-                {periods.map(p => (
-                  <DropdownMenuRadioItem key={p.value} value={p.value}>
-                    {p.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
-                <Clock className="mr-2 h-4 w-4" />
-                Interval
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuRadioGroup value={interval} onValueChange={handleIntervalChange}>
-                {intervals.map(i => (
-                  <DropdownMenuRadioItem key={i.value} value={i.value} disabled={!validIntervals.find(vi => vi.value === i.value)}>
-                    {i.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-            
-            <DropdownMenu>
+        <div className="flex flex-col gap-3 pt-4 mt-2 border-t border-gray-700">
+          {/* Mobile: Stack all controls vertically */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 sm:items-center sm:justify-between">
+            {/* Period and Interval Controls */}
+            <div className="flex flex-col xs:flex-row gap-2 sm:gap-3 flex-1">
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto">
-                        <SlidersHorizontal className="mr-2 h-4 w-4" />
-                        Indicators
-                    </Button>
+                  <Button variant="outline" className="w-full xs:w-auto xs:min-w-[100px] justify-start">
+                    <CalendarRange className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">Period: {periods.find(p => p.value === period)?.label}</span>
+                  </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuLabel>Price Overlays</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {indicators.filter(ind => ind.key.startsWith('sma')).map(ind => (
-                        <DropdownMenuCheckboxItem
-                            key={ind.key}
-                            checked={visibleIndicators[ind.key as keyof typeof visibleIndicators]}
-                            onCheckedChange={() => handleIndicatorToggle(ind.key)}
-                        >
-                            {ind.label}
-                        </DropdownMenuCheckboxItem>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuRadioGroup value={period} onValueChange={handlePeriodChange}>
+                    {periods.map(p => (
+                      <DropdownMenuRadioItem key={p.value} value={p.value}>
+                        {p.label}
+                      </DropdownMenuRadioItem>
                     ))}
-                    <DropdownMenuSeparator />
-                     <DropdownMenuLabel>Separate Indicators</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {indicators.filter(ind => !ind.key.startsWith('sma')).map(ind => (
-                        <DropdownMenuCheckboxItem
-                            key={ind.key}
-                            checked={visibleIndicators[ind.key as keyof typeof visibleIndicators]}
-                            onCheckedChange={() => handleIndicatorToggle(ind.key)}
-                        >
-                            {ind.label}
-                        </DropdownMenuCheckboxItem>
-                    ))}
+                  </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full xs:w-auto xs:min-w-[100px] justify-start">
+                    <Clock className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">Interval: {intervals.find(i => i.value === interval)?.label}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuRadioGroup value={interval} onValueChange={handleIntervalChange}>
+                    {intervals.map(i => (
+                      <DropdownMenuRadioItem key={i.value} value={i.value} disabled={!validIntervals.find(vi => vi.value === i.value)}>
+                        {i.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
+            {/* Indicators Control */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto sm:min-w-[120px] justify-start">
+                  <SlidersHorizontal className="mr-2 h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">Indicators</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Price Overlays</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {indicators.filter(ind => ind.key.startsWith('sma')).map(ind => (
+                  <DropdownMenuCheckboxItem
+                    key={ind.key}
+                    checked={visibleIndicators[ind.key as keyof typeof visibleIndicators]}
+                    onCheckedChange={() => handleIndicatorToggle(ind.key)}
+                  >
+                    {ind.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Separate Indicators</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {indicators.filter(ind => !ind.key.startsWith('sma')).map(ind => (
+                  <DropdownMenuCheckboxItem
+                    key={ind.key}
+                    checked={visibleIndicators[ind.key as keyof typeof visibleIndicators]}
+                    onCheckedChange={() => handleIndicatorToggle(ind.key)}
+                  >
+                    {ind.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
             </DropdownMenu>
+          </div>
         </div>
       </CardContent>
     </Card>

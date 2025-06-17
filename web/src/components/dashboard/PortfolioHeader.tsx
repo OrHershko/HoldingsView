@@ -1,50 +1,90 @@
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { Portfolio } from "@/types/api";
-import { TrendingUp, TrendingDown, Wallet, Briefcase, Plus } from 'lucide-react';
+import React from 'react';
+import { Plus, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import type { Portfolio } from '@/types/api';
 
 interface PortfolioHeaderProps {
-  portfolio: Portfolio | undefined;
+  portfolio?: Portfolio;
   onAddStock: () => void;
 }
 
 const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock }) => {
-  const summary = {
-    totalValue: portfolio?.total_market_value || 0,
-    totalGain: portfolio?.total_unrealized_gain_loss || 0,
-    totalGainPercent: portfolio?.total_unrealized_gain_loss_percent || 0,
-  };
-  const isPositiveGain = summary.totalGain >= 0;
+  const totalValue = portfolio?.total_market_value || 0;
+  const totalGainLoss = portfolio?.total_unrealized_gain_loss || 0;
+  const totalGainLossPercent = portfolio?.total_unrealized_gain_loss_percent || 0;
+  const holdingsCount = portfolio?.holdings?.length || 0;
+
+  const isPositive = totalGainLoss >= 0;
 
   return (
-    <>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-semibold">{portfolio?.name || 'Portfolio'}</h1>
-        <Button onClick={onAddStock} className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="mr-2 h-4 w-4" /> Add Transaction
-        </Button>
-      </div>
+    <Card className="bg-gray-800 border-gray-700 min-w-[380px]">
+      <CardContent className="p-4 md:p-6">
+        {/* Header with title and add button */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-white">Portfolio</h1>
+            <p className="text-sm text-gray-400">
+              {holdingsCount} {holdingsCount === 1 ? 'holding' : 'holdings'}
+            </p>
+          </div>
+          <Button 
+            onClick={onAddStock}
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Transaction
+          </Button>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white">
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <div className="flex items-center text-gray-400 text-sm mb-1 ">
-            <Briefcase className="h-4 w-4 mr-2" />
-            <span>Total Value</span>
+        {/* Portfolio metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+          {/* Total Value */}
+          <div className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg">
+            <div className="p-2 bg-blue-600/20 rounded-lg">
+              <DollarSign className="h-5 w-5 text-blue-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Total Value</p>
+              <p className="text-lg md:text-xl font-bold text-white truncate">
+                ${totalValue.toFixed(2)}
+              </p>
+            </div>
           </div>
-          <p className="text-2xl font-bold">${summary.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-        </div>
-        <div className="bg-gray-800 p-4 rounded-lg min-w-60">
-          <div className="flex items-center text-gray-400 text-sm mb-1">
-            {isPositiveGain ? <TrendingUp className="h-4 w-4 mr-2 text-green-500" /> : <TrendingDown className="h-4 w-4 mr-2 text-red-500" />}
-            <span>Total Gain / Loss</span>
+
+          {/* Total Gain/Loss */}
+          <div className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg min-w-fit">
+            <div className={`p-2 rounded-lg ${isPositive ? 'bg-green-600/20' : 'bg-red-600/20'}`}>
+              {isPositive ? (
+                <TrendingUp className="h-5 w-5 text-green-400" />
+              ) : (
+                <TrendingDown className="h-5 w-5 text-red-400" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 ">
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Today's P&L</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className={`pt-1 text-lg md:text-xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                  {isPositive ? '+' : ''}${totalGainLoss.toFixed(2)}
+                </p>
+                <Badge 
+                  variant="secondary" 
+                  className={`text-xs px-2 py-0.5 ${
+                    isPositive 
+                      ? 'bg-green-600/20 text-green-400 border-green-600/30' 
+                      : 'bg-red-600/20 text-red-400 border-red-600/30'
+                  }`}
+                >
+                  {isPositive ? '+' : ''}{totalGainLossPercent.toFixed(2)}%
+                </Badge>
+              </div>
+            </div>
           </div>
-          <p className={`text-2xl font-bold ${isPositiveGain ? 'text-green-500' : 'text-red-500'}`}>
-            {summary.totalGain.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-            <span className="text-lg ml-2">({summary.totalGainPercent.toFixed(2)}%)</span>
-          </p>
         </div>
-      </div>
-    </>
+      </CardContent>
+    </Card>
   );
 };
 

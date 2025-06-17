@@ -44,7 +44,7 @@ const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transaction
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex-1 min-w-0">
       <StockChart
         stockData={stockData as EnrichedMarketData}
         period={period}

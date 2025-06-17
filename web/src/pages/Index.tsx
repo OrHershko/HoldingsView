@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePortfolio } from '@/hooks/useAppQueries';
-import { EnrichedHolding, TransactionRead } from '@/types/api';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import PortfolioHeader from '@/components/dashboard/PortfolioHeader';
@@ -10,6 +10,7 @@ import HoldingsList from '@/components/dashboard/HoldingsList';
 import StockDetailsView from '@/components/dashboard/StockDetailsView';
 import AddTransactionDialog from '@/components/AddTransactionDialog';
 import { toast } from '@/components/ui/sonner';
+import { cn } from '@/lib/utils';
 
 const FullPageLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -18,10 +19,11 @@ const FullPageLoader: React.FC = () => (
 );
 
 const Index: React.FC = () => {
-  const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('home');
   const [isAddTransactionOpen, setAddTransactionOpen] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<'holdings' | 'details'>('holdings');
   
   const { currentUser, loading: authLoading } = useAuth();
   const isGuest = !currentUser && !authLoading;
@@ -49,9 +51,18 @@ const Index: React.FC = () => {
     }
   }, [holdings, selectedSymbol]);
   
-  const handleToggleMobileSidebar = useCallback(() => setMobileSidebarOpen(prev => !prev), []);
-  const handleSelectStock = useCallback((symbol: string) => setSelectedSymbol(symbol), []);
+  const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
+  
+  const handleSelectStock = useCallback((symbol: string) => {
+    setSelectedSymbol(symbol);
+    if (window.innerWidth < 768) {
+      setMobileView('details');
+    }
+  }, []);
+  
   const handleOpenAddTransaction = () => setAddTransactionOpen(true);
+
+  const handleBackToHoldings = () => setMobileView('holdings');
 
   if (authLoading || (!isGuest && portfolioLoading && !portfolioData)) {
     return <FullPageLoader />;
@@ -62,41 +73,80 @@ const Index: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
-      <div className="hidden md:block md:w-64">
-        <Sidebar activeItem={activeNavItem} setActiveItem={setActiveNavItem} />
+    <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
+      <div className="lg:hidden">
+        <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="left" className="w-64 p-0 bg-gray-800 border-gray-700">
+            <Sidebar activeItem={activeNavItem} setActiveItem={setActiveNavItem} />
+          </SheetContent>
+        </Sheet>
       </div>
 
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Header toggleMobileSidebar={handleToggleMobileSidebar} isGuest={isGuest} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-            <ResizablePanel defaultSize={40} minSize={30}>
-              <div className="flex flex-col h-full pr-4 space-y-4">
-                <PortfolioHeader 
-                  portfolio={portfolioData}
-                  onAddStock={handleOpenAddTransaction}
-                />
-                <HoldingsList
-                  holdings={holdings}
-                  onSelectStock={handleSelectStock}
-                  selectedSymbol={selectedSymbol}
-                />
-              </div>
-            </ResizablePanel>
-            
-            <ResizableHandle withHandle />
+      <div className="flex flex-col flex-1 min-w-0">
+        <Header 
+          toggleSidebar={toggleSidebar} 
+          isGuest={isGuest} 
+          selectedSymbol={selectedSymbol}
+          mobileView={mobileView}
+          onBackToHoldings={handleBackToHoldings}
+        />
+        
+        <main className="flex-1 overflow-hidden">
+          <div className="hidden md:block h-full p-4 lg:p-6">
+            <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+              <ResizablePanel defaultSize={35} minSize={0}>
+                <div className="flex flex-col h-full pr-4 space-y-4">
+                  <PortfolioHeader 
+                    portfolio={portfolioData}
+                    onAddStock={handleOpenAddTransaction}
+                  />
+                  <HoldingsList
+                    holdings={holdings}
+                    onSelectStock={handleSelectStock}
+                    selectedSymbol={selectedSymbol}
+                  />
+                </div>
+              </ResizablePanel>
+              
+              <ResizableHandle withHandle />
 
-            <ResizablePanel defaultSize={60} minSize={40}>
-              <div className="h-full overflow-y-auto pl-4">
+              <ResizablePanel defaultSize={65} minSize={20} className="min-w-0 overflow-hidden">
+                <div className="h-full overflow-y-auto pl-4">
+                  <StockDetailsView 
+                    symbol={selectedSymbol} 
+                    transactions={transactionsForSelectedStock} 
+                    portfolioId={portfolioData?.id} 
+                  />
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </div>
+
+          <div className="md:hidden h-full flex flex-col">
+            {mobileView === 'holdings' ? (
+              <div className="flex-1 overflow-hidden p-4">
+                <div className="h-full flex flex-col space-y-4">
+                  <PortfolioHeader 
+                    portfolio={portfolioData}
+                    onAddStock={handleOpenAddTransaction}
+                  />
+                  <HoldingsList
+                    holdings={holdings}
+                    onSelectStock={handleSelectStock}
+                    selectedSymbol={selectedSymbol}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
                 <StockDetailsView 
                   symbol={selectedSymbol} 
                   transactions={transactionsForSelectedStock} 
                   portfolioId={portfolioData?.id} 
                 />
               </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+            )}
+          </div>
         </main>
       </div>
 
