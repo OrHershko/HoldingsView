@@ -20,6 +20,8 @@ export interface EnrichedHolding {
   market_value: number | null;
   unrealized_gain_loss: number | null;
   unrealized_gain_loss_percent: number | null;
+  todays_change: number | null;
+  todays_change_percent: number | null;
 }
 
 // Matches api/schemas/portfolio.py -> PortfolioReadWithHoldings
@@ -66,10 +68,10 @@ export interface EnrichedMarketData {
   short_name?: string;
   long_name?: string;
   current_price: number;
-  historical_prices: { date: string; open: number; high: number; low: number; close: number; volume: number }[];
-  technicals: unknown; // Define further if needed
-  fundamentals: unknown; // Define further if needed
-  trading_info: unknown; // Define further if needed
+  historical_prices: OHLCV[];
+  technicals: TechnicalIndicators;
+  fundamentals: Fundamentals;
+  trading_info: TradingInfo;
   news: { title: string; publisher: string; link: string; provider_publish_time: string }[];
 }
 
@@ -84,4 +86,48 @@ export interface TradingStrategy {
     stop_loss_suggestion?: number;
     take_profit_suggestion?: number;
     rationale: string;
+}
+
+// Matches api/schemas/market_data.py -> TechnicalIndicators
+export interface TechnicalIndicators {
+    sma_20: number | null;
+    sma_50: number | null;
+    sma_100: number | null;
+    sma_150: number | null;
+    sma_200: number | null;
+    rsi_14: number | null;
+}
+
+// Matches api/schemas/market_data.py -> Fundamentals
+export interface Fundamentals {
+    market_cap: number | null;
+    sector: string | null;
+    industry: string | null;
+    description: string | null;
+}
+
+// Matches api/schemas/market_data.py -> TradingInfo
+export interface TradingInfo {
+    market_state: string | null;
+    regular_market_change_percent: number | null;
+    pre_market_price: number | null;
+    pre_market_change_percent: number | null;
+    post_market_price: number | null;
+    post_market_change_percent: number | null;
+}
+
+// Matches api/schemas/market_data.py -> OHLCV
+export interface OHLCV {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  sma_20?: number | null;
+  sma_50?: number | null;
+  sma_100?: number | null;
+  sma_150?: number | null;
+  sma_200?: number | null;
+  rsi_14?: number | null;
 }

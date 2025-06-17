@@ -39,3 +39,4 @@ class PortfolioReadWithHoldings(PortfolioRead):
     total_cost_basis: Optional[float] = Field(None, description="Total cost basis of the entire portfolio")
     total_unrealized_gain_loss: Optional[float] = Field(None, description="Total unrealized gain or loss for the entire portfolio")
     total_unrealized_gain_loss_percent: Optional[float] = Field(None, description="Total unrealized gain or loss percentage for the entire portfolio")
+    total_todays_change: Optional[float] = Field(None, description="Total change in portfolio value for today")

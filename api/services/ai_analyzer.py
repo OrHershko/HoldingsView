@@ -31,15 +31,15 @@ def format_stock_data_for_prompt(data: EnrichedMarketData) -> str:
     trading_status_parts = [f"Market is {ti.market_state}."]
     if ti.market_state == "REGULAR":
         if ti.regular_market_change_percent is not None:
-            change_str = f"{ti.regular_market_change_percent*100:+.2f}%"
+            change_str = f"{ti.regular_market_change_percent:+.2f}%"
             trading_status_parts.append(f"Today's Change: {change_str}")
     elif ti.market_state == "PRE":
         if ti.pre_market_price is not None and ti.pre_market_change_percent is not None:
-            change_str = f"{ti.pre_market_change_percent*100:+.2f}%"
+            change_str = f"{ti.pre_market_change_percent:+.2f}%"
             trading_status_parts.append(f"Pre-Market: ${ti.pre_market_price:.2f} ({change_str})")
     elif ti.market_state == "POST":
         if ti.post_market_price is not None and ti.post_market_change_percent is not None:
-            change_str = f"{ti.post_market_change_percent*100:+.2f}%"
+            change_str = f"{ti.post_market_change_percent:+.2f}%"
             trading_status_parts.append(f"Post-Market: ${ti.post_market_price:.2f} ({change_str})")
     trading_status_str = " ".join(trading_status_parts)
 
@@ -146,7 +146,7 @@ async def analyze_portfolio(holdings: List[CalculatedHolding]) -> str:
         return f"Received an unexpected response from the AI service: {e}"
 
 
-async def analyze_stock_deep_dive(data: EnrichedMarketData) -> str:
+async def analyze_stock_deep_dive(data: EnrichedMarketData, language: str = "English") -> str:
     """
     Performs a deep-dive analysis on a stock using its enriched data.
     """
@@ -174,6 +174,7 @@ async def analyze_stock_deep_dive(data: EnrichedMarketData) -> str:
         "(e.g., competition, regulatory changes, macroeconomic factors).\n\n"
         "Provide clear, concise points and justify each with evidence from the data. Do not "
         "give direct financial advice, price targets, or 'buy/sell/hold' recommendations."
+        f"THE LANGUAGE OF THE RESPONSE SHOULD BE WRITTEN IN {language.upper()}."
     )
 
     user_prompt = f"Please provide a deep-dive analysis for the following stock based on this data:\n\n{formatted_data}"
@@ -193,12 +194,12 @@ async def analyze_stock_deep_dive(data: EnrichedMarketData) -> str:
         return f"Received an unexpected response from the AI service: {e}"
 
 
-async def generate_trading_strategy(data: EnrichedMarketData) -> TradingStrategy:
+async def generate_trading_strategy(data: EnrichedMarketData, language: str = "English") -> TradingStrategy:
     """
     Generates an actionable trading strategy using an AI model.
     """
     formatted_data = format_stock_data_for_prompt(data)
-    
+
     system_prompt = f"""
 You are a quantitative trading analyst. Your task is to devise a short-term (1-4 week) 
 trading strategy based on the provided technical indicators and recent news.
@@ -215,6 +216,7 @@ YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT THAT CONFORMS TO THIS PYDANTIC
 Analyze the data and provide concrete, actionable numbers. For the rationale, explain exactly
 which technical indicators (e.g., RSI, MACD, SMAs) and news items led to your conclusion.
 Be concise and direct.
+THE LANGUAGE OF THE RATIONALE SHOULD BE WRITTEN IN {language.upper()}.
 """
     user_prompt = f"Generate a trading strategy for the following stock data:\n\n{formatted_data}"
 

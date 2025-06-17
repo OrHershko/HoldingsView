@@ -90,40 +90,49 @@ def create_snapshots_for_all_portfolios():
 
 
 @celery_app.task(name="tasks.get_enriched_market_data_task")
-def get_enriched_market_data_task(symbol: str):
+def get_enriched_market_data_task(symbol: str, **kwargs):
     """
     Celery task to fetch enriched market data.
     """
     from api.services import market_data_aggregator
     
     try:
-        data = asyncio.run(market_data_aggregator.get_enriched_market_data(symbol))
+        period: str | None = kwargs.get("period")
+        interval: str | None = kwargs.get("interval")
+        print(f"DEBUG TASK: symbol={symbol!r}, period={period!r}, interval={interval!r}")
+        data = asyncio.run(
+            market_data_aggregator.get_enriched_market_data(
+                symbol, period=period, interval=interval
+            )
+        )
         return data.model_dump(mode="json")
     except Exception as e:
+        import traceback
+        print(f"FULL ERROR: {traceback.format_exc()}")
         return {"error": str(e), "symbol": symbol}
 
 
 @celery_app.task(name="tasks.run_deep_dive_analysis_task")
-def run_deep_dive_analysis_task(enriched_data_dict: dict):
+def run_deep_dive_analysis_task(enriched_data_dict: dict, language: str | None = None):
     """
     Celery task to run the AI deep-dive analysis.
     """
     try:
         enriched_data = EnrichedMarketData(**enriched_data_dict)
-        content = asyncio.run(ai_analyzer.analyze_stock_deep_dive(enriched_data))
+        content = asyncio.run(ai_analyzer.analyze_stock_deep_dive(enriched_data, language=language))
         return {"content": content}
     except Exception as e:
         return {"error": f"Failed during AI deep-dive analysis: {e}"}
 
 
 @celery_app.task(name="tasks.run_trading_strategy_task")
-def run_trading_strategy_task(enriched_data_dict: dict):
+def run_trading_strategy_task(enriched_data_dict: dict, language: str | None = None):
     """
     Celery task to generate an AI trading strategy.
     """
     try:
         enriched_data = EnrichedMarketData(**enriched_data_dict)
-        strategy = asyncio.run(ai_analyzer.generate_trading_strategy(enriched_data))
+        strategy = asyncio.run(ai_analyzer.generate_trading_strategy(enriched_data, language=language))
         return strategy.model_dump(mode="json")
     except Exception as e:
         return {"error": f"Failed during AI strategy generation: {e}"}

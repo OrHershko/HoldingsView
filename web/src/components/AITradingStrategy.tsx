@@ -7,12 +7,14 @@ import apiClient from '@/services/apiService';
 import { EnrichedMarketData, TaskStatus, TradingStrategy } from '@/types/api';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { LanguageOptionsProps } from './dashboard/StockDetailsView';
 
 interface AITradingStrategyProps {
   stockData: EnrichedMarketData;
+  LanguageOptions: React.FC<LanguageOptionsProps>;
 }
 
-const pollTask = async (taskId: string, retries = 20, interval = 3000): Promise<unknown> => {
+const pollTask = async (taskId: string, retries = 20, interval = 3000): Promise<any> => {
   for (let i = 0; i < retries; i++) {
     await new Promise(resolve => setTimeout(resolve, interval));
     const { data: taskStatus } = await apiClient.get<TaskStatus>(`/tasks/${taskId}`);
@@ -37,19 +39,20 @@ const StrategyIcon = ({ type }: { type: 'bullish' | 'bearish' | 'neutral-range'}
     return <Minus className="h-5 w-5 text-gray-400" />;
 };
 
-const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData }) => {
+const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData, LanguageOptions }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [strategy, setStrategy] = useState<TradingStrategy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-
+  const [language, setLanguage] = useState<string>('English');
+  
   const fetchStrategy = async () => {
     setIsLoading(true);
     setError(null);
     setStrategy(null);
 
     try {
-      const { data: task } = await apiClient.post<TaskStatus>(`/market-data/${stockData.symbol}/strategize`);
+      const { data: task } = await apiClient.post<TaskStatus>(`/market-data/${stockData.symbol}/strategize`, { language: language });
       const result = await pollTask(task.task_id);
       setStrategy(result);
     } catch (err: unknown) {
@@ -66,20 +69,20 @@ const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData }) => {
   };
 
   return (
-    <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+    <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold flex items-center"><LightbulbIcon className="mr-2 h-6 w-6" />AI Trading Strategy</h2>
-        <Button onClick={fetchStrategy} disabled={isLoading} size="sm">
+        <LanguageOptions language={language} setLanguage={setLanguage} />
+        <Button onClick={fetchStrategy} disabled={isLoading} size="sm" className="min-w-[125px]">
           {isLoading ? <RefreshCwIcon className="h-4 w-4 animate-spin" /> : 'Generate Strategy'}
         </Button>
       </div>
       
       {isLoading && (
         <div className="space-y-3 mt-4">
-          <Skeleton className="h-4 w-3/4 bg-gray-700" />
-          <Skeleton className="h-4 w-full bg-gray-700" />
-          <Skeleton className="h-4 w-full bg-gray-700" />
-          <Skeleton className="h-4 w-5/6 bg-gray-700" />
+          <Skeleton className="h-6 w-1/4" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
         </div>
       )}
       
@@ -120,7 +123,9 @@ const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData }) => {
 
             <div>
                 <h4 className="font-semibold text-md mb-1">Rationale</h4>
-                <p className="text-sm text-gray-300 leading-relaxed">{strategy.rationale}</p>
+                <div dir="rtl" className="text-right">
+                    <p className={`text-sm text-gray-300 leading-relaxed ${language === 'Hebrew' ? 'rtl' : ''}`}>{strategy.rationale}</p>
+                </div>
             </div>
 
         </div>

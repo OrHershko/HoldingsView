@@ -1,20 +1,24 @@
 import pandas as pd
 import pandas_ta as ta
+from typing import Tuple
 
 from api.schemas.market_data import TechnicalIndicators
 
-def calculate_indicators(df: pd.DataFrame) -> TechnicalIndicators:
+def calculate_indicators(df: pd.DataFrame) -> Tuple[pd.DataFrame, TechnicalIndicators]:
     """
-    Calculates a set of technical indicators from a DataFrame of OHLCV data.
+    Calculates a set of technical indicators, appends them to the input DataFrame,
+    and also returns a Pydantic model with the latest indicator values.
     
     Args:
         df: A pandas DataFrame with 'Open', 'High', 'Low', 'Close', 'Volume' columns.
         
     Returns:
-        A Pydantic model containing the latest values for the calculated indicators.
+        A tuple containing:
+        - The original DataFrame with indicator columns appended.
+        - A Pydantic model with the latest values for the calculated indicators.
     """
     if df.empty:
-        return TechnicalIndicators()
+        return df, TechnicalIndicators()
 
     # Calculate indicators using pandas_ta. It appends columns to the DataFrame.
     try:
@@ -27,15 +31,14 @@ def calculate_indicators(df: pd.DataFrame) -> TechnicalIndicators:
         df.ta.macd(fast=12, slow=26, signal=9, append=True)
         df.ta.bbands(length=20, std=2, append=True)
     except Exception as e:
-        # Log and return empty indicators if pandas_ta fails for any reason
         print(f"Technical indicator calculation failed: {e}")
-        return TechnicalIndicators()
+        return df, TechnicalIndicators()
     
     # Get the last row of the DataFrame which contains the latest indicator values
     latest_indicators = df.iloc[-1]
     
-    # Create the Pydantic model, handling potential NaN values by converting them to None
-    return TechnicalIndicators(
+    # Create the Pydantic model for the latest indicators
+    technicals_model = TechnicalIndicators(
         sma_20=latest_indicators.get('SMA_20'),
         sma_50=latest_indicators.get('SMA_50'),
         sma_100=latest_indicators.get('SMA_100'),
@@ -49,3 +52,6 @@ def calculate_indicators(df: pd.DataFrame) -> TechnicalIndicators:
         bollinger_middle=latest_indicators.get('BBM_20_2.0'),
         bollinger_lower=latest_indicators.get('BBL_20_2.0'),
     )
+
+    # Return both the modified DataFrame and the Pydantic model
+    return df, technicals_model

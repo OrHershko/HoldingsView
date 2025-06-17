@@ -29,7 +29,7 @@ export const usePortfolio = (options: { enabled: boolean }) => {
       return detailedPortfolio;
     },
     enabled: options.enabled,
-    staleTime: 60 * 1000, // Refetch data every 1 minute
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000, // Data is fresh for 5 minutes
+    refetchOnWindowFocus: false, // Prevents refetching on window focus for a more stable UI
   });
 };

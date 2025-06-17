@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useEnrichedMarketData } from '@/hooks/useMarketData';
 import { Skeleton } from '@/components/ui/skeleton';
 import StockChart from '@/components/StockChart';
@@ -7,15 +7,32 @@ import { AlertTriangle, ServerCrash } from 'lucide-react';
 import { EnrichedMarketData, TransactionRead } from '@/types/api';
 import TransactionHistory from '@/components/TransactionHistory';
 import AITradingStrategy from '@/components/AITradingStrategy';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 interface StockDetailsViewProps {
   symbol: string | null;
   transactions: TransactionRead[];
   portfolioId: number | undefined;
+  containerWidth: number;
 }
 
-const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transactions, portfolioId }) => {
-  const { data: stockData, isLoading, error } = useEnrichedMarketData(symbol);
+export interface LanguageOptionsProps {
+  language: string;
+  setLanguage: (language: string) => void;
+}
+
+const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transactions, portfolioId, containerWidth }) => {
+  const [period, setPeriod] = useState<string>('1y');
+  const [interval, setInterval] = useState<string>('1d');
+  const { data: stockData, isLoading, error } = useEnrichedMarketData(symbol, period, interval);
+
+  useEffect(() => {
+    if (symbol) {
+      setPeriod('1y');
+      setInterval('1d');
+    }
+  }, [symbol]);
 
   if (!symbol) {
     return (
@@ -41,11 +58,35 @@ const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transaction
     );
   }
 
+  const LanguageOptions: React.FC<LanguageOptionsProps> = ({language, setLanguage}) => {
+    
+    return (
+      <Select value={language} onValueChange={setLanguage}>
+          <SelectTrigger className="w-24 h-10 ml-auto mr-2">
+            <SelectValue placeholder="Select Language" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="English">English</SelectItem>
+            <SelectItem value="Hebrew">Hebrew</SelectItem>
+          </SelectContent>
+      </Select>
+    );
+  };
+
+
   return (
-    <div className="space-y-6">
-      <StockChart stockData={stockData as EnrichedMarketData} />
-      <AIStockAnalysis stockData={stockData as EnrichedMarketData} />
-      <AITradingStrategy stockData={stockData as EnrichedMarketData} />
+    <div className="space-y-6 flex-1 min-w-0 overflow-x-hidden">
+      <StockChart
+        stockData={stockData as EnrichedMarketData}
+        symbol={symbol}
+        period={period}
+        interval={interval}
+        onPeriodChange={setPeriod}
+        onIntervalChange={setInterval}
+        containerWidth = {containerWidth}
+      />
+      <AIStockAnalysis stockData={stockData as EnrichedMarketData} LanguageOptions={LanguageOptions} />
+      <AITradingStrategy stockData={stockData as EnrichedMarketData} LanguageOptions={LanguageOptions} />
       <TransactionHistory transactions={transactions} portfolioId={portfolioId} />
     </div>
   );

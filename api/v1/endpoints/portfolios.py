@@ -88,21 +88,33 @@ async def read_portfolio(
     # 2. Get unique symbols from the calculated holdings to fetch market data.
     unique_symbols = [h.symbol for h in base_holdings]
     
-    # 3. Fetch current prices for these symbols.
-    market_prices = await market_data_service.get_current_prices(unique_symbols)
+    # 3. Fetch current prices and daily changes for these symbols.
+    market_data = await market_data_service.get_current_prices(unique_symbols)
     
     # 4. Enrich holdings with market data and calculate market value, P/L, etc.
     enriched_holdings: List[CalculatedHolding] = []
+    total_todays_change = 0.0
     for holding in base_holdings:
-        current_price = market_prices.get(holding.symbol)
-        if current_price:
-            holding.current_price = current_price
-            holding.market_value = holding.quantity * current_price
-            holding.unrealized_gain_loss = holding.market_value - holding.total_cost_basis
-            if holding.total_cost_basis > 0:
-                holding.unrealized_gain_loss_percent = (holding.unrealized_gain_loss / holding.total_cost_basis) * 100
-            else:
-                holding.unrealized_gain_loss_percent = 0.0
+        symbol_data = market_data.get(holding.symbol)
+        if symbol_data:
+            current_price = symbol_data.get("price")
+            todays_change = symbol_data.get("change", 0.0)
+
+            if current_price is not None:
+                holding.current_price = current_price
+                holding.market_value = holding.quantity * current_price
+                holding.unrealized_gain_loss = holding.market_value - holding.total_cost_basis
+                if holding.total_cost_basis > 0:
+                    holding.unrealized_gain_loss_percent = (holding.unrealized_gain_loss / holding.total_cost_basis) * 100
+                else:
+                    holding.unrealized_gain_loss_percent = 0.0
+                
+                # Add today's change data
+                holding.todays_change = todays_change
+                holding.todays_change_percent = symbol_data.get("change_percent", 0.0)
+
+                # Add to portfolio's total change
+                total_todays_change += holding.quantity * todays_change
         enriched_holdings.append(holding)
 
     # 5. Calculate portfolio-level summary from enriched holdings.
@@ -116,6 +128,10 @@ async def read_portfolio(
     total_unrealized_gain_loss_percent = 0.0
     if total_cost_basis > 0:
         total_unrealized_gain_loss_percent = (total_unrealized_gain_loss / total_cost_basis) * 100
+
+    total_todays_change_percent = 0.0
+    if total_market_value > 0:
+        total_todays_change_percent = (total_todays_change / total_market_value) * 100
 
     # 6. Combine portfolio data with calculated holdings and summary for the response.
     portfolio_response_data = {
@@ -131,6 +147,8 @@ async def read_portfolio(
         "total_cost_basis": total_cost_basis,
         "total_unrealized_gain_loss": total_unrealized_gain_loss,
         "total_unrealized_gain_loss_percent": total_unrealized_gain_loss_percent,
+        "total_todays_change": total_todays_change,
+        "total_todays_change_percent": total_todays_change_percent,
     }
 
     return PortfolioReadWithHoldings(**portfolio_response_data)
@@ -203,7 +221,7 @@ def create_transaction(
         calculated_holdings = calculate_holdings_from_transactions(portfolio.transactions)
         
         current_holding = next(
-            (h for h in calculated_holdings if h.symbol == transaction_in.symbol), None
+            (h for h in calculated_holdings if h.symbol.upper() == transaction_in.symbol.upper()), None
         )
 
         current_quantity = current_holding.quantity if current_holding else 0.0
