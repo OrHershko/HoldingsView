@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePortfolio } from '@/hooks/useAppQueries';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -24,7 +24,33 @@ const Index: React.FC = () => {
   const [isAddTransactionOpen, setAddTransactionOpen] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'holdings' | 'details'>('holdings');
-  
+  const [chartContainerWidth, setChartContainerWidth] = useState(0);
+
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const measuredRef = useCallback((node: HTMLDivElement | null) => {
+    // Disconnect any existing observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+    
+    // If we get a new node, set up a new observer
+    if (node !== null) {
+      const observer = new ResizeObserver(() => {
+        if (node.clientWidth > 0) {
+          setChartContainerWidth(node.clientWidth - 50);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+      
+      // Set initial width immediately
+      if (node.clientWidth > 0) {
+        setChartContainerWidth(node.clientWidth - 50);
+      }
+    }
+  }, []);
+
   const { currentUser, loading: authLoading } = useAuth();
   const isGuest = !currentUser && !authLoading;
   
@@ -62,8 +88,6 @@ const Index: React.FC = () => {
   
   const handleOpenAddTransaction = () => setAddTransactionOpen(true);
 
-  const handleBackToHoldings = () => setMobileView('holdings');
-
   if (authLoading || (!isGuest && portfolioLoading && !portfolioData)) {
     return <FullPageLoader />;
   }
@@ -86,16 +110,13 @@ const Index: React.FC = () => {
         <Header 
           toggleSidebar={toggleSidebar} 
           isGuest={isGuest} 
-          selectedSymbol={selectedSymbol}
-          mobileView={mobileView}
-          onBackToHoldings={handleBackToHoldings}
         />
         
         <main className="flex-1 overflow-hidden">
-          <div className="hidden md:block h-full p-4 lg:p-6">
+          <div className="hidden md:block h-full p-4 lg:p-6 ">
             <ResizablePanelGroup direction="horizontal" className="h-full w-full">
               <ResizablePanel defaultSize={35} minSize={0}>
-                <div className="flex flex-col h-full pr-4 space-y-4">
+                <div className="flex flex-col h-full pr-4 space-y-4 overflow-y-auto">
                   <PortfolioHeader 
                     portfolio={portfolioData}
                     onAddStock={handleOpenAddTransaction}
@@ -103,19 +124,19 @@ const Index: React.FC = () => {
                   <HoldingsList
                     holdings={holdings}
                     onSelectStock={handleSelectStock}
-                    selectedSymbol={selectedSymbol}
                   />
                 </div>
               </ResizablePanel>
               
               <ResizableHandle withHandle />
 
-              <ResizablePanel defaultSize={65} minSize={20} className="min-w-0 overflow-hidden">
-                <div className="h-full overflow-y-auto pl-4">
+              <ResizablePanel defaultSize={65} minSize={0} className="min-w-0 overflow-hidden">
+                <div ref={measuredRef} className="h-full overflow-y-auto p-2">
                   <StockDetailsView 
                     symbol={selectedSymbol} 
                     transactions={transactionsForSelectedStock} 
-                    portfolioId={portfolioData?.id} 
+                    portfolioId={portfolioData?.id}
+                    containerWidth={chartContainerWidth}
                   />
                 </div>
               </ResizablePanel>
@@ -124,8 +145,8 @@ const Index: React.FC = () => {
 
           <div className="md:hidden h-full flex flex-col">
             {mobileView === 'holdings' ? (
-              <div className="flex-1 overflow-hidden p-4">
-                <div className="h-full flex flex-col space-y-4">
+              <div className="flex-1 overflow-hidden">
+                <div className="h-full flex flex-col space-y-4 p-2">
                   <PortfolioHeader 
                     portfolio={portfolioData}
                     onAddStock={handleOpenAddTransaction}
@@ -133,16 +154,16 @@ const Index: React.FC = () => {
                   <HoldingsList
                     holdings={holdings}
                     onSelectStock={handleSelectStock}
-                    selectedSymbol={selectedSymbol}
                   />
                 </div>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+              <div ref={measuredRef} className="flex-1 overflow-y-auto p-4">
                 <StockDetailsView 
                   symbol={selectedSymbol} 
                   transactions={transactionsForSelectedStock} 
-                  portfolioId={portfolioData?.id} 
+                  portfolioId={portfolioData?.id}
+                  containerWidth={chartContainerWidth}
                 />
               </div>
             )}

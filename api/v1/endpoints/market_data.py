@@ -1,4 +1,5 @@
 from fastapi import APIRouter, status, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from api.auth.firebase import get_current_user
 from api.tasks import (
@@ -10,6 +11,10 @@ from api.schemas.task import TaskStatus
 from api.services import market_data_aggregator
 
 router = APIRouter()
+
+
+class AiRequestBody(BaseModel):
+    language: str = "English"
 
 
 @router.post(
@@ -47,7 +52,7 @@ def trigger_market_data_for_symbol(
     summary="Trigger AI-Powered Deep Dive Stock Analysis",
     dependencies=[Depends(get_current_user)],
 )
-async def analyze_stock(symbol: str):
+async def analyze_stock(symbol: str, request: AiRequestBody):
     """
     Submits a background task to generate a detailed narrative analysis for a stock.
 
@@ -62,7 +67,7 @@ async def analyze_stock(symbol: str):
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    task = run_deep_dive_analysis_task.delay(enriched_data.model_dump(mode="json"))
+    task = run_deep_dive_analysis_task.delay(enriched_data.model_dump(mode="json"), language=request.language)
     return TaskStatus(task_id=task.id, status="PENDING")
 
 
@@ -73,7 +78,7 @@ async def analyze_stock(symbol: str):
     summary="Trigger AI-Powered Trading Strategy Generation",
     dependencies=[Depends(get_current_user)],
 )
-async def get_trading_strategy(symbol: str):
+async def get_trading_strategy(symbol: str, request: AiRequestBody):
     """
     Submits a background task to generate a short-term, actionable trading strategy.
 
@@ -93,5 +98,5 @@ async def get_trading_strategy(symbol: str):
             detail=f"Could not fetch market data: {e}",
         )
 
-    task = run_trading_strategy_task.delay(enriched_data.model_dump(mode="json"))
+    task = run_trading_strategy_task.delay(enriched_data.model_dump(mode="json"), language=request.language)
     return TaskStatus(task_id=task.id, status="PENDING")

@@ -1,3 +1,4 @@
+// web/src/components/StockChart.tsx
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import LightweightStockChart from './charts/LightweightStockChart';
@@ -10,6 +11,7 @@ import type { ChartDataPoint } from '@/components/charts/LightweightStockChart';
 
 interface StockChartProps {
   stockData: EnrichedMarketData;
+  symbol: string;
   period: string;
   interval: string;
   onPeriodChange: (newPeriod: string) => void;
@@ -48,15 +50,15 @@ const intervals = [
 ];
 
 const indicators = [
-  { key: 'sma20', label: 'SMA 20' },
-  { key: 'sma50', label: 'SMA 50' },
-  { key: 'sma100', label: 'SMA 100' },
-  { key: 'sma150', label: 'SMA 150' },
-  { key: 'sma200', label: 'SMA 200' },
-  { key: 'rsi', label: 'RSI' },
+  { key: 'sma_20', label: 'SMA 20' },
+  { key: 'sma_50', label: 'SMA 50' },
+  { key: 'sma_100', label: 'SMA 100' },
+  { key: 'sma_150', label: 'SMA 150' },
+  { key: 'sma_200', label: 'SMA 200' },
+  { key: 'rsi_14', label: 'RSI' },
 ];
 
-const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, onPeriodChange, onIntervalChange, containerWidth }) => {
+const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, interval, onPeriodChange, onIntervalChange, containerWidth }) => {
   const isPositive = (stockData.trading_info?.regular_market_change_percent || 0) >= 0;
   
   const isIntradayInterval = (interval: string) => {
@@ -134,11 +136,11 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
     }
     setVisibleIndicators(prev => ({
       ...prev,
-      sma20: false,
-      sma50: false,
-      sma100: false,
-      sma150: false,
-      sma200: false,
+      sma_20: false,
+      sma_50: false,
+      sma_100: false,
+      sma_150: false,
+      sma_200: false,
     }));
     
     onPeriodChange(newPeriod);
@@ -152,23 +154,23 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
     }
     setVisibleIndicators(prev => ({
       ...prev,
-      sma20: false,
-      sma50: false,
-      sma100: false,
-      sma150: false,
-      sma200: false,
+      sma_20: false,
+      sma_50: false,
+      sma_100: false,
+      sma_150: false,
+      sma_200: false,
     }));
     
     onIntervalChange(newInterval);
   };
   
   const [visibleIndicators, setVisibleIndicators] = useState({
-    sma20: false,
-    sma50: false,
-    sma100: false,
-    sma150: false,
-    sma200: false,
-    rsi: true,    // Default to true
+    sma_20: false,
+    sma_50: false,
+    sma_100: false,
+    sma_150: false,
+    sma_200: false,
+    rsi_14: true,    // Default to true
   });
 
   const handleIndicatorToggle = (indicatorKey: string) => {
@@ -259,17 +261,17 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
       sma_200: sma200[idx],
       rsi_14: rsi14[idx],
     })) as unknown as ChartDataPoint[];
-  }, [stockData.historical_prices]);
+  }, [interval, symbol]); 
 
   return (
-    <Card className="bg-gray-800 border-gray-700 text-white w-full">
+    <Card className="bg-gray-800 border-gray-700 text-white min-w-[300px]">
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="text-2xl">{stockData.short_name || stockData.symbol}</CardTitle>
           <div className="text-right">
             <p className="text-2xl font-bold">${stockData.current_price?.toFixed(2)}</p>
             <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-              {((stockData.trading_info?.regular_market_change_percent || 0) * 100).toFixed(2)}%
+              {stockData.trading_info?.regular_market_change_percent?.toFixed(2)}%
             </p>
           </div>
         </div>
@@ -281,11 +283,11 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
           timeframe={period}
           containerWidth={containerWidth}
         />
-        <div className="flex flex-col gap-3 pt-4 mt-2 border-t border-gray-700">
+        <div className="flex flex-col gap-3 pt-4 mt-2 border-t border-gray-700 text-xs">
           {/* Mobile: Stack all controls vertically */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 sm:items-center sm:justify-between">
             {/* Period and Interval Controls */}
-            <div className="flex flex-col xs:flex-row gap-2 sm:gap-3 flex-1">
+            <div className="flex flex-wrap gap-2 sm:gap-3 flex-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="w-full xs:w-auto xs:min-w-[100px] justify-start">
@@ -334,7 +336,7 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Price Overlays</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {indicators.filter(ind => ind.key.startsWith('sma')).map(ind => (
+                {indicators.filter(ind => ind.key.startsWith('sma_')).map(ind => (
                   <DropdownMenuCheckboxItem
                     key={ind.key}
                     checked={visibleIndicators[ind.key as keyof typeof visibleIndicators]}
@@ -346,7 +348,7 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Separate Indicators</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {indicators.filter(ind => !ind.key.startsWith('sma')).map(ind => (
+                {indicators.filter(ind => !ind.key.startsWith('sma_')).map(ind => (
                   <DropdownMenuCheckboxItem
                     key={ind.key}
                     checked={visibleIndicators[ind.key as keyof typeof visibleIndicators]}

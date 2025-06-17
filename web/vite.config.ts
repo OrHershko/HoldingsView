@@ -23,7 +23,7 @@ export default defineConfig(() => ({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          charts: ['lightweight-charts', 'recharts'],
+          charts: ['lightweight-charts'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-popover']
         }
       }

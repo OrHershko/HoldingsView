@@ -16,6 +16,8 @@ class CalculatedHolding(BaseModel):
     market_value: Optional[float] = Field(None, description="Total current market value of the holding (quantity * current_price)")
     unrealized_gain_loss: Optional[float] = Field(None, description="Total unrealized profit or loss")
     unrealized_gain_loss_percent: Optional[float] = Field(None, description="Total unrealized profit or loss in percentage terms")
+    todays_change: Optional[float] = Field(None, description="Today's absolute change in price")
+    todays_change_percent: Optional[float] = Field(None, description="Today's percentage change in price")
 
     class Config:
         from_attributes = True

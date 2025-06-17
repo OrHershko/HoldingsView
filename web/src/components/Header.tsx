@@ -1,9 +1,10 @@
 import React from 'react';
-import { Bell, Menu, LogOut, UserCircle, ArrowLeft } from 'lucide-react';
+import { Menu, LogOut, UserCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import logo from '@/assets/logo.png';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -36,7 +37,6 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className="flex justify-between items-center p-3 md:p-4 lg:p-5 mb-2 border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm">
       <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-        {/* Mobile Navigation */}
         <div className="flex items-center gap-2 md:hidden">
           {showBackButton ? (
             <button 
@@ -55,64 +55,26 @@ const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Desktop/Tablet Menu Button */}
         <button 
           onClick={toggleSidebar}
           className="hidden md:block text-white hover:text-gray-300 transition-colors"
         >
           <Menu size={24} />
         </button>
-
-        <div className="flex-1 min-w-0">
-          {/* Mobile Title */}
-          <div className="md:hidden">
-            {showBackButton ? (
-              <h1 className="text-lg font-bold text-white truncate">
-                {selectedSymbol}
-              </h1>
-            ) : (
-              <h1 className="text-lg font-bold text-white flex items-center">
-                <UserCircle size={20} className="mr-2 opacity-80 flex-shrink-0" />
-                <span className="truncate">
-                  {isGuest ? 'Guest' : (currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Guest')}
-                </span>
-                {isGuest && (
-                  <Badge variant="secondary" className="ml-2 text-xs py-0.5 px-1.5 bg-gray-700 text-gray-300 border-gray-600">
-                    Guest
-                  </Badge>
-                )}
-              </h1>
-            )}
-          </div>
-
-          {/* Desktop Title */}
-          <div className="hidden md:block">
-            {isGuest ? (
-              <h1 className="text-xl lg:text-2xl font-bold text-white flex items-center mb-2">
-                <UserCircle size={28} className="mr-2 opacity-80" /> Guest User
-                <Badge variant="secondary" className="ml-3 text-xs py-0.5 px-1.5 bg-gray-700 text-gray-300 border-gray-600">Guest Mode</Badge>
-              </h1>
-            ) : (
-              <h1 className="text-xl lg:text-2xl font-bold text-white flex items-center mb-2">
-                <UserCircle size={28} className="mr-2 opacity-80" /> 
-                <span className="truncate">
-                  {currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Guest'}
-                </span>
-              </h1>
-            )}
-            <p className="text-sm text-gray-400 pr-4">
-              {isGuest ? 'Explore the platform. Your data is local to this browser.' : "Welcome back, here's what's happening today"}
-            </p>
-          </div>
-        </div>
       </div>
+
+      <div className="absolute left-1/2 -translate-x-1/2 pb-1 pt-1 justify-center items-center">
+        <img
+          src={logo}
+          alt="Logo"
+          className="w-30 h-14 flex-shrink-0 min-w-fit" 
+        />
+      </div>
+
       
       <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
         {!isGuest && (
           <>
-            <button className="text-gray-400 hover:text-white transition-colors p-1">
-              <Bell size={18} className="md:w-5 md:h-5" />
-            </button>
             <button 
               onClick={handleLogout}
               className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 p-1"

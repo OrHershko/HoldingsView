@@ -5,13 +5,11 @@ import { EnrichedHolding } from "@/types/api";
 interface HoldingsListProps {
   holdings: EnrichedHolding[];
   onSelectStock: (symbol: string) => void;
-  selectedSymbol: string | null;
 }
 
 const HoldingsList: React.FC<HoldingsListProps> = ({
   holdings,
   onSelectStock,
-  selectedSymbol,
 }) => {
   return (
     <div className="h-full flex flex-col">
@@ -30,8 +28,7 @@ const HoldingsList: React.FC<HoldingsListProps> = ({
                 key={holding.symbol}
                 id={holding.symbol}
                 holding={holding}
-                onClick={() => onSelectStock(holding.symbol)}
-                isSelected={selectedSymbol === holding.symbol}
+                onSelectStock={() => onSelectStock(holding.symbol)}
               />
             ))
           ) : (

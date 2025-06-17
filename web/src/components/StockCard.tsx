@@ -1,73 +1,115 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { EnrichedHolding } from '@/types/api';
 import { cn } from '@/lib/utils';
 
 interface StockCardProps {
   holding: EnrichedHolding;
-  onClick: () => void;
+  onSelectStock: () => void;
   id: string;
-  isSelected: boolean;
 }
 
 const StockCard: React.FC<StockCardProps> = ({
   holding,
-  onClick,
-  isSelected,
+  onSelectStock,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const isPositiveGain = (holding.unrealized_gain_loss || 0) >= 0;
-  const currentPrice = holding.current_price || 0;
   const marketValue = holding.market_value || 0;
-  const gainLoss = holding.unrealized_gain_loss || 0;
+  const unrealizedGainLoss = holding.unrealized_gain_loss || 0;
   const gainLossPercent = holding.unrealized_gain_loss_percent || 0;
+
+  const todaysChange = holding.todays_change || 0;
+  const todaysChangePercent = holding.todays_change_percent || 0;
+  const isPositiveDailyChange = todaysChange >= 0;
+
+  const handleExpandClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    e.stopPropagation();
+    setIsExpanded(!isExpanded);
+  }
 
   return (
     <Card
-      onClick={onClick}
+      onClick={onSelectStock}
       className={cn(
-        "bg-gray-800 hover:bg-gray-700/50 active:bg-gray-700 transition-colors duration-200 cursor-pointer touch-manipulation",
+        "bg-gray-800 hover:bg-gray-700/50 active:bg-gray-700 transition-all duration-200 cursor-pointer touch-manipulation",
         "border-2 hover:border-gray-600 active:scale-[0.98]",
-        isSelected ? "border-blue-500 bg-blue-950/20" : "border-gray-700"
+        isExpanded ? "border-blue-500 bg-blue-950/20" : "border-gray-700"
       )}
     >
-      <div className="p-4 md:p-5">
-        {/* Main content layout */}
-        <div className="flex justify-between items-start gap-3">
-          {/* Left side - Symbol and quantity */}
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-lg md:text-xl text-white truncate">
-              {holding.symbol}
-            </h3>
-            <p className="text-xs md:text-sm text-gray-400 mt-0.5">
-              {holding.quantity.toLocaleString()} shares @ ${currentPrice.toFixed(2)}
-            </p>
-          </div>
+      <div className="p-4 flex items-center justify-between gap-4">
+        {/* Left Side: Symbol & shares */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-lg text-white truncate">
+            {holding.symbol}
+          </h3>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {holding.quantity.toLocaleString()} shares
+          </p>
+        </div>
 
-          {/* Right side - Values */}
+        
+        
+        {/* Right Side: Total Value & Arrow */}
+        <div className="flex items-center gap-3">
           <div className="text-right flex-shrink-0">
-            <p className="font-bold text-lg md:text-xl text-white">
+            <p className="font-bold text-lg text-white">
               ${marketValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <div className={cn(
-              "text-sm md:text-base flex items-center justify-end gap-1 mt-0.5",
-              isPositiveGain ? 'text-green-400' : 'text-red-400'
-            )}>
-              {isPositiveGain ? (
-                <TrendingUp className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
-              ) : (
-                <TrendingDown className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
-              )}
-              <span className="font-medium">
-                {isPositiveGain ? '+' : ''}${Math.abs(gainLoss).toFixed(2)}
-              </span>
-              <span className="text-xs md:text-sm opacity-80">
-                ({isPositiveGain ? '+' : ''}{gainLossPercent.toFixed(2)}%)
-              </span>
+            {/* Middle: Today's Change */}
+            <div className="text-right flex-shrink-0 flex flex-row gap-1 mt-1">
+              <p className={cn(
+                  "font-semibold text-base",
+                  isPositiveDailyChange ? 'text-green-400' : 'text-red-400'
+                )}>
+                {isPositiveDailyChange ? '+' : '-'}${Math.abs(todaysChange).toFixed(2)}
+              </p>
+              <p className={cn(
+                  "text-sm mt-0.5",
+                  isPositiveDailyChange ? 'text-green-400' : 'text-red-400'
+                )}>
+                ({isPositiveDailyChange ? '+' : ''}{todaysChangePercent.toFixed(2)}%)
+              </p>
             </div>
           </div>
+          <ChevronDown onClick={(e) => handleExpandClick(e)} className={cn(
+              "h-6 w-6 text-gray-500 transition-transform duration-300 flex-shrink-0",
+              isExpanded && "rotate-180"
+            )} />
         </div>
       </div>
+      
+      {/* Expanded Details Section */}
+      {isExpanded && (
+        <div className="px-4 pb-4 text-sm animate-in fade-in-0 slide-in-from-top-4 duration-300">
+          <hr className="border-gray-700 mb-4" />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-gray-300">
+            <span>Avg. Cost</span>
+            <span className="text-right font-mono text-white">
+              ${holding.average_cost_basis.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+
+            <span>Total Cost</span>
+            <span className="text-right font-mono text-white">
+              ${holding.total_cost_basis.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            
+            <span>Market Value</span>
+            <span className="text-right font-mono text-white">
+                ${marketValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+
+            <span>Unrealized P/L</span>
+            <span className={cn(
+              "text-right font-mono",
+              isPositiveGain ? 'text-green-400' : 'text-red-400'
+            )}>
+                {isPositiveGain ? '+' : ''}${unrealizedGainLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };

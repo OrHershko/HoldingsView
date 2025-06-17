@@ -14,9 +14,22 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
   const totalValue = portfolio?.total_market_value || 0;
   const totalGainLoss = portfolio?.total_unrealized_gain_loss || 0;
   const totalGainLossPercent = portfolio?.total_unrealized_gain_loss_percent || 0;
-  const holdingsCount = portfolio?.holdings?.length || 0;
 
-  const isPositive = totalGainLoss >= 0;
+  const totalGainLossToday = (portfolio?.holdings ?? [])
+  .reduce((acc, holding) => acc + (holding.todays_change ?? 0), 0);
+
+  const totalMarketValueYesterday = (portfolio?.holdings ?? [])
+  .reduce((acc, holding) => {
+    const yesterdayPrice = (holding.current_price ?? 0) - (holding.todays_change ?? 0);
+    return acc + (yesterdayPrice * holding.quantity);
+  }, 0);
+
+  const totalGainLossTodayPercent = totalMarketValueYesterday !== 0
+  ? ((totalValue - totalMarketValueYesterday) / totalMarketValueYesterday) * 100
+  : 0;
+
+  const isTodayPositive = totalGainLossToday >= 0;
+  const isTotalPositive = totalGainLoss >= 0;
 
   return (
     <Card className="bg-gray-800 border-gray-700 min-w-[380px]">
@@ -25,9 +38,6 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-white">Portfolio</h1>
-            <p className="text-sm text-gray-400">
-              {holdingsCount} {holdingsCount === 1 ? 'holding' : 'holdings'}
-            </p>
           </div>
           <Button 
             onClick={onAddStock}
@@ -56,8 +66,36 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
 
           {/* Total Gain/Loss */}
           <div className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg min-w-fit">
-            <div className={`p-2 rounded-lg ${isPositive ? 'bg-green-600/20' : 'bg-red-600/20'}`}>
-              {isPositive ? (
+            <div className={`p-2 rounded-lg ${isTotalPositive ? 'bg-green-600/20' : 'bg-red-600/20'}`}>
+              {isTotalPositive ? (
+                <TrendingUp className="h-5 w-5 text-green-400" />
+              ) : (
+                <TrendingDown className="h-5 w-5 text-red-400" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 ">
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Total P&L</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className={`pt-1 text-lg md:text-xl font-bold ${isTotalPositive ? 'text-green-400' : 'text-red-400'}`}>
+                  {isTotalPositive ? '+' : ''}${totalGainLoss?.toFixed(2)}
+                </p>
+                <Badge 
+                  variant="secondary" 
+                  className={`text-xs px-2 py-0.5 ${
+                    isTotalPositive 
+                      ? 'bg-green-600/20 text-green-400 border-green-600/30' 
+                      : 'bg-red-600/20 text-red-400 border-red-600/30'
+                  }`}
+                >
+                  {isTotalPositive ? '+' : ''}{totalGainLossPercent?.toFixed(2)}%
+                </Badge>
+              </div>
+            </div>
+          </div>
+          {/* Today's Gain/Loss */}
+          <div className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg min-w-fit">
+            <div className={`p-2 rounded-lg ${isTodayPositive ? 'bg-green-600/20' : 'bg-red-600/20'}`}>
+              {isTodayPositive ? (
                 <TrendingUp className="h-5 w-5 text-green-400" />
               ) : (
                 <TrendingDown className="h-5 w-5 text-red-400" />
@@ -66,18 +104,18 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
             <div className="min-w-0 flex-1 ">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Today's P&L</p>
               <div className="flex flex-wrap items-center gap-2">
-                <p className={`pt-1 text-lg md:text-xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-                  {isPositive ? '+' : ''}${totalGainLoss.toFixed(2)}
+                <p className={`pt-1 text-lg md:text-xl font-bold ${isTodayPositive ? 'text-green-400' : 'text-red-400'}`}>
+                  {isTodayPositive ? '+' : '-'}${Math.abs(totalGainLossToday)?.toFixed(2)}
                 </p>
                 <Badge 
                   variant="secondary" 
                   className={`text-xs px-2 py-0.5 ${
-                    isPositive 
+                    isTodayPositive 
                       ? 'bg-green-600/20 text-green-400 border-green-600/30' 
                       : 'bg-red-600/20 text-red-400 border-red-600/30'
                   }`}
                 >
-                  {isPositive ? '+' : ''}{totalGainLossPercent.toFixed(2)}%
+                  {isTodayPositive ? '+' : ''}{totalGainLossTodayPercent?.toFixed(2)}%
                 </Badge>
               </div>
             </div>

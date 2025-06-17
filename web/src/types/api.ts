@@ -20,6 +20,8 @@ export interface EnrichedHolding {
   market_value: number | null;
   unrealized_gain_loss: number | null;
   unrealized_gain_loss_percent: number | null;
+  todays_change: number | null;
+  todays_change_percent: number | null;
 }
 
 // Matches api/schemas/portfolio.py -> PortfolioReadWithHoldings
@@ -116,7 +118,7 @@ export interface TradingInfo {
 
 // Matches api/schemas/market_data.py -> OHLCV
 export interface OHLCV {
-  date: string; // ISO timestamp
+  date: string;
   open: number;
   high: number;
   low: number;

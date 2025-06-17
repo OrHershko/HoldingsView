@@ -14,6 +14,8 @@ import {
   PriceLineOptions,
 } from 'lightweight-charts';
 import { cn } from '@/lib/utils';
+import { useDebounce } from 'use-debounce';
+
 
 export interface ChartDataPoint {
   time: UTCTimestamp;
@@ -32,7 +34,7 @@ export interface ChartDataPoint {
 
 interface LightweightStockChartProps {
   data: ChartDataPoint[];
-  visibleIndicators: { [key:string]: boolean };
+  visibleIndicators: { [key: string]: boolean };
   timeframe: string;
   containerWidth: number;
 }
@@ -51,11 +53,11 @@ const toLine = (d: ChartDataPoint, key: keyof ChartDataPoint): LineData | null =
 };
 
 const indicatorConfig = {
-  sma20: { color: '#2962FF', key: 'sma_20' , title: 'SMA 20'},
-  sma50: { color: '#FF6D00', key: 'sma_50' , title: 'SMA 50'},
-  sma100: { color: '#F50057', key: 'sma_100' , title: 'SMA 100'},
-  sma150: { color: '#FFEA00', key: 'sma_150' , title: 'SMA 150'},
-  sma200: { color: '#76FF03', key: 'sma_200' , title: 'SMA 200'},
+  sma_20: { color: '#2962FF', key: 'sma_20' , title: 'SMA 20'},
+  sma_50: { color: '#FF6D00', key: 'sma_50' , title: 'SMA 50'},
+  sma_100: { color: '#F50057', key: 'sma_100' , title: 'SMA 100'},
+  sma_150: { color: '#FFEA00', key: 'sma_150' , title: 'SMA 150'},
+  sma_200: { color: '#76FF03', key: 'sma_200' , title: 'SMA 200'},
 };
 
 const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, visibleIndicators, timeframe, containerWidth }) => {
@@ -64,8 +66,11 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
 
   const chartRef = useRef<IChartApi | null>(null);
   const rsiChartRef = useRef<IChartApi | null>(null);
+  const [debouncedWidth] = useDebounce(containerWidth, 100);
+  const prevWidthRef = useRef<number>(0);
 
-  const seriesRef = useRef<{ [key: string]: ISeriesApi<any> }>({});
+
+  const seriesRef = useRef<{ [key: string]: ISeriesApi<'Line'> | ISeriesApi<'Candlestick'> | ISeriesApi<'Histogram'> }>({});
 
   // --- Chart Initialization & Cleanup ---
   useEffect(() => {
@@ -109,11 +114,15 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
 
   // --- Resize charts when containerWidth prop changes ---
   useEffect(() => {
-    if (containerWidth > 0) {
-      chartRef.current?.resize(containerWidth, undefined);
-      rsiChartRef.current?.resize(containerWidth, undefined);
+    if (
+      debouncedWidth > 202 &&
+      debouncedWidth !== prevWidthRef.current
+    ) {
+      chartRef.current?.applyOptions({ width: debouncedWidth });
+      rsiChartRef.current?.applyOptions({ width: debouncedWidth });
+      prevWidthRef.current = debouncedWidth;
     }
-  }, [containerWidth]);
+  }, [debouncedWidth]);
 
   // --- Sync Time Scales ---
   useEffect(() => {
@@ -148,8 +157,14 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
     if (!mainChart) return;
 
     // Set data for base series
-    seriesRef.current.candles?.setData(data.map(toCandle));
-    seriesRef.current.volume?.setData(data.map(toVolume));
+    const candleSeries = seriesRef.current.candles;
+    if (candleSeries) {
+      candleSeries.setData(data.map(toCandle));
+    }
+    const volumeSeries = seriesRef.current.volume;
+    if (volumeSeries) {
+      volumeSeries.setData(data.map(toVolume));
+    }
 
     // Manage SMA indicators
     Object.keys(indicatorConfig).forEach(key => {
@@ -158,9 +173,10 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
       
       if (isVisible) {
         const config = indicatorConfig[key as keyof typeof indicatorConfig];
-        const lineData = data.map(d => toLine(d, config.key as keyof ChartDataPoint)).filter(Boolean) as LineData[];
+        const lineData = data.map(d => toLine(d, key as keyof ChartDataPoint)).filter(Boolean) as LineData[];
+
         if (!seriesExists) {
-          seriesRef.current[key] = mainChart.addSeries(LineSeries, { color: config.color, lineWidth: 2, lastValueVisible: false, priceLineVisible: false });
+          seriesRef.current[key] = mainChart.addSeries(LineSeries, { color: config.color, lineWidth: 2, lastValueVisible: true, priceLineVisible: false });
         }
         seriesRef.current[key].setData(lineData);
       } else if (seriesExists) {
@@ -169,8 +185,9 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
       }
     });
     
+    
     // Manage RSI indicator
-    const rsiVisible = visibleIndicators.rsi;
+    const rsiVisible = visibleIndicators.rsi_14;
     const rsiSeriesExists = !!seriesRef.current.rsi;
     const rsiContainer = rsiContainerRef.current;
 
@@ -179,7 +196,7 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
       if (!rsiSeriesExists && rsiContainer) {
         const rsiHeight = window.innerWidth < 768 ? 100 : 128;
         const rsiChart = createChart(rsiContainer, {
-          width: containerWidth > 0 ? containerWidth : rsiContainer.clientWidth, height: rsiHeight,
+          width: debouncedWidth > 0 ? debouncedWidth : rsiContainer.clientWidth, height: rsiHeight,
           layout: { background: { color: 'transparent' }, textColor: '#D1D5DB' },
           grid: { vertLines: { color: '#374151' }, horzLines: { color: '#374151' } },
           rightPriceScale: { borderColor: '#4B5563', visible: true },
@@ -233,7 +250,7 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
       }
     }
 
-  }, [data, visibleIndicators, timeframe, containerWidth]);
+  }, [data, visibleIndicators, timeframe]);
 
   const currentValues = data.length > 0 ? data[data.length-1] : {};
 
@@ -259,7 +276,7 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
       <div ref={chartContainerRef} className="w-full" />
       <div
         ref={rsiContainerRef}
-        className={cn('w-full transition-all duration-300 overflow-hidden', visibleIndicators.rsi ? 'h-24 sm:h-32 mt-2' : 'h-0')}
+        className={cn('w-full transition-all duration-300', visibleIndicators.rsi_14 ? 'h-24 sm:h-32 mt-2' : 'h-0')}
       />
     </div>
   );
