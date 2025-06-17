@@ -15,10 +15,8 @@ interface StockDetailsViewProps {
 }
 
 const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transactions, portfolioId }) => {
-  // Period and interval state are lifted here so that data is re-fetched when they change
   const [period, setPeriod] = useState<string>('1y');
   const [interval, setInterval] = useState<string>('1d');
-
   const { data: stockData, isLoading, error } = useEnrichedMarketData(symbol, period, interval);
 
   if (!symbol) {

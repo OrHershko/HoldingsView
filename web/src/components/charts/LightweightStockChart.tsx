@@ -49,11 +49,11 @@ const toLine = (d: ChartDataPoint, key: keyof ChartDataPoint): LineData | null =
 };
 
 const indicatorConfig = {
-  sma20: { color: '#2962FF', key: 'sma_20' },
-  sma50: { color: '#FF6D00', key: 'sma_50' },
-  sma100: { color: '#F50057', key: 'sma_100' },
-  sma150: { color: '#FFEA00', key: 'sma_150' },
-  sma200: { color: '#76FF03', key: 'sma_200' },
+  sma20: { color: '#2962FF', key: 'sma_20' , title: 'SMA 20'},
+  sma50: { color: '#FF6D00', key: 'sma_50' , title: 'SMA 50'},
+  sma100: { color: '#F50057', key: 'sma_100' , title: 'SMA 100'},
+  sma150: { color: '#FFEA00', key: 'sma_150' , title: 'SMA 150'},
+  sma200: { color: '#76FF03', key: 'sma_200' , title: 'SMA 200'},
 };
 
 const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, visibleIndicators, timeframe }) => {
@@ -64,6 +64,22 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
   const rsiChartRef = useRef<IChartApi | null>(null);
 
   const seriesRef = useRef<{ [key: string]: ISeriesApi<'Line'> | ISeriesApi<'Candlestick'> | ISeriesApi<'Histogram'> }>({});
+
+  // Get current values for legend
+  const getCurrentValues = () => {
+    if (data.length === 0) return {};
+    const lastDataPoint = data[data.length - 1];
+    return {
+      sma20: lastDataPoint.sma_20,
+      sma50: lastDataPoint.sma_50,
+      sma100: lastDataPoint.sma_100,
+      sma150: lastDataPoint.sma_150,
+      sma200: lastDataPoint.sma_200,
+      rsi: lastDataPoint.rsi_14,
+    };
+  };
+
+  const currentValues = getCurrentValues();
 
   useEffect(() => {
     if (!chartContainerRef.current || data.length === 0) return;
@@ -79,7 +95,8 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
       crosshair: { mode: 1 },
       handleScale: {
         axisPressedMouseMove: true,
-        pinch: true,
+        axisDoubleClickReset: false,
+        pinch: false,
         mouseWheel: true,
       },
       handleScroll: {
@@ -155,7 +172,12 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
       const config = indicatorConfig[key as keyof typeof indicatorConfig];
 
       if (isVisible && !seriesExists) {
-        const lineSeries = chart.addSeries(LineSeries, { color: config.color, lineWidth: 2, lastValueVisible: false, priceLineVisible: false });
+        const lineSeries = chart.addSeries(LineSeries, { 
+          color: config.color, 
+          lineWidth: 2, 
+          lastValueVisible: false, 
+          priceLineVisible: false
+        });
         const lineData = data.map(d => toLine(d, config.key as keyof ChartDataPoint)).filter(Boolean) as LineData[];
         lineSeries.setData(lineData);
         seriesRef.current[key] = lineSeries;
@@ -174,12 +196,17 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
     if (rsiVisible && !rsiSeriesExists && rsiContainerRef.current) {
         rsiChartRef.current = createChart(rsiContainerRef.current, {
              width: rsiContainerRef.current.clientWidth, height: 128, layout: { background: { color: 'transparent' }, textColor: '#D1D5DB' },
-             grid: { vertLines: { color: '#374151' }, horzLines: { color: '#374151' } }, rightPriceScale: { borderColor: '#4B5563', visible: false },
-             timeScale: { borderColor: '#4B5563', visible: false }, crosshair: { mode: 1 },
-             handleScale: { axisPressedMouseMove: false, pinch: true, mouseWheel: true },
+             grid: { vertLines: { color: '#374151' }, horzLines: { color: '#374151' } }, rightPriceScale: { borderColor: '#4B5563', visible: true },
+             timeScale: { borderColor: '#4B5563', visible: true, timeVisible: true, secondsVisible: false }, crosshair: { mode: 1 },
+             handleScale: { axisPressedMouseMove: false, axisDoubleClickReset: false, pinch: false, mouseWheel: true },
              handleScroll: { pressedMouseMove: true, mouseWheel: true, horzTouchDrag: true, vertTouchDrag: true },
         });
-        const rsiSeries = rsiChartRef.current.addSeries(LineSeries, { color: '#9c27b0', lineWidth: 2 });
+        const rsiSeries = rsiChartRef.current.addSeries(LineSeries, { 
+          color: '#9c27b0', 
+          lineWidth: 2, 
+          lastValueVisible: true, 
+          priceLineVisible: false,
+        });
         const rsiData = data.map(d => toLine(d, 'rsi_14')).filter(Boolean) as LineData[];
         rsiSeries.setData(rsiData);
         seriesRef.current.rsi = rsiSeries;
@@ -194,7 +221,7 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
           title: 'Overbought',
           lineVisible: true,
           axisLabelColor: '#ef5350',
-          axisLabelTextColor: '#ffffff'
+          axisLabelTextColor: '#ffffff',
         };
         const oversoldLine: PriceLineOptions = { 
           price: 30, 
@@ -262,6 +289,28 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, vis
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
+      {/* SMA Legend */}
+      {Object.keys(indicatorConfig).some(key => visibleIndicators[key]) && (
+        <div className="flex flex-wrap gap-4 mb-2 p-2 bg-gray-900/50 rounded text-xs">
+          {Object.keys(indicatorConfig).map(key => {
+            if (!visibleIndicators[key]) return null;
+            const config = indicatorConfig[key as keyof typeof indicatorConfig];
+            const value = currentValues[key as keyof typeof currentValues];
+            return (
+              <div key={key} className="flex items-center gap-1">
+                <div 
+                  className="w-3 h-0.5" 
+                  style={{ backgroundColor: config.color }}
+                />
+                <span className="text-gray-300">
+                  {config.title}: {value ? value.toFixed(2) : 'N/A'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      
       <div ref={chartContainerRef} className="w-full" />
       <div
         ref={rsiContainerRef}

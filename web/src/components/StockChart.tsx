@@ -58,19 +58,17 @@ const indicators = [
 const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, onPeriodChange, onIntervalChange }) => {
   const isPositive = (stockData.trading_info?.regular_market_change_percent || 0) >= 0;
   
-  // Define compatibility rules
   const isIntradayInterval = (interval: string) => {
     return ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h'].includes(interval);
   };
   
   const isLongPeriod = (period: string) => {
-    return ['1y', '2y', '5y', '10y', 'max'].includes(period);
+    return ['ytd', '1y', '2y', '5y', '10y', 'max'].includes(period);
   };
   
   const isDailyPlusInterval = (intervalValue: string) => !isIntradayInterval(intervalValue);
 
   const isShorterIntervalThanPeriod = (intervalValue: string, periodValue: string) => {
-    // Convert periods and intervals to days for comparison
     const periodToDays = (period: string): number => {
       switch (period) {
         case '1d': return 1;
@@ -78,12 +76,12 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
         case '1mo': return 30;
         case '3mo': return 90;
         case '6mo': return 180;
-        case 'ytd': return 365; // Approximate, varies by year
+        case 'ytd': return 365;
         case '1y': return 365;
         case '2y': return 730;
         case '5y': return 1825;
         case '10y': return 3650;
-        case 'max': return 36500; // Very large number for max
+        case 'max': return 36500;
         default: return 365;
       }
     };
@@ -111,7 +109,6 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
     const intervalDays = intervalToDays(intervalValue);
     
     // Interval should be significantly shorter than period
-    // Allow some tolerance for edge cases
     return intervalDays >= (periodDays * 0.8); // If interval is 80% or more of period, it's too long
   };
 
@@ -128,14 +125,10 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
 
   const validIntervals = getValidIntervals(period);
   
-  // Handle period change with auto-correction
   const handlePeriodChange = (newPeriod: string) => {
-    // When changing period, auto-correct interval if needed
     if (isLongPeriod(newPeriod) && isIntradayInterval(interval)) {
-        // Correct invalid combo: Long Period + Intraday Interval -> use Daily Interval
         onIntervalChange('1d');
     } else if (!isLongPeriod(newPeriod) && isDailyPlusInterval(interval)) {
-        // Enhance UX: Short Period + Daily+ Interval -> use max Intraday Interval
         onIntervalChange('1h');
     }
     setVisibleIndicators(prev => ({
@@ -150,11 +143,8 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
     onPeriodChange(newPeriod);
   };
   
-  // Handle interval change with auto-correction  
   const handleIntervalChange = (newInterval: string) => {
-    // When changing interval, auto-correct period if needed
     if (isIntradayInterval(newInterval) && isLongPeriod(period)) {
-        // Correct invalid combo: Intraday Interval + Long Period -> use max Short Period
         onPeriodChange('3mo');
     } else if (isDailyPlusInterval(newInterval) && !isLongPeriod(period)) {
         onPeriodChange('5y');
@@ -188,8 +178,16 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
   };
 
   const chartData = useMemo(() => {
+    const rawPrices = Array.isArray(stockData.historical_prices)
+      ? stockData.historical_prices
+      : ([] as typeof stockData.historical_prices);
+
+    if (rawPrices.length === 0) {
+      return [] as ChartDataPoint[];
+    }
+
     // Sort data by date to ensure chronological order
-    const sortedPrices = [...stockData.historical_prices].sort((a, b) => 
+    const sortedPrices = [...rawPrices].sort((a, b) =>
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
     
@@ -260,7 +258,7 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
       sma_200: sma200[idx],
       rsi_14: rsi14[idx],
     })) as unknown as ChartDataPoint[];
-  }, [stockData.historical_prices]);
+  }, [interval]);
 
   return (
     <Card className="bg-gray-800 border-gray-700 text-white">
@@ -268,7 +266,7 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, period, interval, on
         <div className="flex justify-between items-center">
           <CardTitle className="text-2xl">{stockData.short_name || stockData.symbol}</CardTitle>
           <div className="text-right">
-            <p className="text-2xl font-bold">${stockData.current_price.toFixed(2)}</p>
+            <p className="text-2xl font-bold">${stockData.current_price?.toFixed(2)}</p>
             <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
               {((stockData.trading_info?.regular_market_change_percent || 0) * 100).toFixed(2)}%
             </p>

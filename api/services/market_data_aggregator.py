@@ -59,48 +59,27 @@ async def get_enriched_market_data(
     # --------------------------- Validation ---------------------------
     period_normalised, interval_normalised = _validate_and_normalize_parameters(period, interval)
 
-    _validate_period_interval_compatibility(period, interval, period_normalised, interval_normalised)
+    # -------------------------------- Strategy --------------------------------
+    # We fetch **the maximum period allowed by Yahoo for the chosen interval**.
+    # This reduces subsequent network calls: changing *period* on the client
+    # merely zooms the chart instead of hitting the backend again.  We still
+    # accept the *period* parameter but use it only for trimming after the full
+    # dataset (needed for indicator calculations) has been retrieved.
 
-    # Fall-back to historic default when nothing supplied
-    yf_period = period_normalised or "18mo"
-    yf_interval = interval_normalised  # may be None – yfinance will decide
+    def _max_fetch_period_for_interval(i: str | None) -> str:
+        """Return the longest period supported by Yahoo for a given interval."""
+        if i in {"1m"}:
+            return "30d"
+        if i in {"2m", "5m", "15m", "30m"}:
+            return "60d"
+        if i in {"60m", "90m", "1h"}:
+            return "730d"  # 2y (approx)
+        # For daily and above we can safely ask for 'max'
+        return "max"
+    
+    yf_interval = interval_normalised  # May be None (let Yahoo pick default daily)
 
-    # --------------------- Fetch period augmentation ---------------------
-    # To ensure long-window indicators such as SMA-200 are fully populated
-    # for the entire visible chart, we may need more history than the user
-    # explicitly requested.  We therefore extend the requested *period*
-    # (when safe to do so) before fetching the data, and later trim the
-    # DataFrame back down to the requested window.
-
-    def _extend_period_for_indicators(req_period: str) -> str:
-        """Return an extended period string that guarantees at least 200 daily
-        data points for indicator calculation.  For intraday intervals the
-        period cannot be extended – yfinance would reject the request – so
-        we leave it unchanged.
-        """
-        # No period supplied (historic default of 18mo) – leave as is.
-        if req_period is None:
-            return yf_period
-
-        mapping = {
-            "1d": "6mo",   
-            "5d": "6mo",   
-            "1mo": "1y",
-            "3mo": "1y",
-            "6mo": "2y",
-            "ytd": "5y",   
-            "1y": "5y",
-            "2y": "5y",
-            # 5y, 10y, max already cover 200 days comfortably
-        }
-        return mapping.get(req_period, req_period)
-
-    # Only extend when using daily-or-higher granularity.  For intraday
-    # intervals yfinance restricts maximum period and we respect that.
-    if yf_interval is None or yf_interval in {"1d", "5d", "1wk", "1mo", "3mo"}:
-        yf_period_extended = _extend_period_for_indicators(period_normalised)
-    else:
-        yf_period_extended = yf_period  # intraday – keep as requested
+    yf_period_extended = _max_fetch_period_for_interval(yf_interval) if yf_interval else "max"
 
     def fetch_and_process():
         ticker = yf.Ticker(symbol)
@@ -123,65 +102,10 @@ async def get_enriched_market_data(
         }
         hist_df_with_indicators.rename(columns=column_mapping, inplace=True)
         
-        # -------------------------------- Trim helper ------------------------------
-        def _trim_dataframe_to_period(df: pd.DataFrame, period_str: str | None) -> pd.DataFrame:
-            """Return slice of *df* matching the requested *period*. When *period*
-            is None or 'max' the DataFrame is returned unchanged.  For 'ytd' we
-            slice from 1-Jan of the current year.  For the remaining period
-            strings we use a pandas offset alias (preferred) or a date delta
-            approximation.
-            """
-            if not period_str or period_str == "max":
-                return df
-
-            if period_str == "ytd":
-                jan_first = datetime(datetime.utcnow().year, 1, 1)
-                return df[df.index >= jan_first]
-
-            alias_map = {
-                "1d": "1D",
-                "5d": "5D",
-                "1mo": "1M",
-                "3mo": "3M",
-                "6mo": "6M",
-                "1y": "1Y",
-                "2y": "2Y",
-                "5y": "5Y",
-                "10y": "10Y",
-            }
-            offset = alias_map.get(period_str)
-            if offset:
-                try:
-                    return df.last(offset)
-                except Exception:
-                    # In case .last() fails (e.g., intraday index), fall back to timedelta
-                    pass
-
-            delta_days_map = {
-                "1d": 1,
-                "5d": 5,
-                "1mo": 30,
-                "3mo": 90,
-                "6mo": 180,
-                "1y": 365,
-                "2y": 730,
-                "5y": 1825,
-                "10y": 3650,
-            }
-            days = delta_days_map.get(period_str)
-            if days:
-                cutoff = datetime.utcnow() - pd.Timedelta(days=days)
-                return df[df.index >= cutoff]
-
-            return df
-
-        # Trim now to the exact period the user cares about
         trimmed_df = _trim_dataframe_to_period(hist_df_with_indicators, period_normalised)
 
-        # Format historical data into Pydantic models, now with indicator data
         historical_prices = []
         for index, row in trimmed_df.iterrows():
-            # Replace numpy.nan with None for JSON compatibility
             safe_row = row.where(pd.notna(row), None).to_dict()
             historical_prices.append(
                 OHLCV(
@@ -200,10 +124,8 @@ async def get_enriched_market_data(
                 )
             )
         
-        # Extract earnings timestamp safely
         earnings_timestamp = info.get("earningsTimestamp")
         
-        # Assemble fundamentals with additional fields
         fundamentals = Fundamentals(
             market_cap=info.get("marketCap"),
             sector=info.get("sector"),
@@ -230,7 +152,6 @@ async def get_enriched_market_data(
             number_of_analyst_opinions=info.get("numberOfAnalystOpinions"),
         )
         
-        # Populate trading information
         trading_info = TradingInfo(
             market_state=info.get("marketState"),
             regular_market_change_percent=info.get("regularMarketChangePercent"),
@@ -240,7 +161,6 @@ async def get_enriched_market_data(
             post_market_change_percent=info.get("postMarketChangePercent"),
         )
         
-        # Format news items with error handling
         formatted_news = []
         for item in news:
             try:
@@ -284,17 +204,7 @@ async def get_enriched_market_data(
 
     return await run_in_threadpool(fetch_and_process)
 
-def _validate_period_interval_compatibility(period: str | None, interval: str | None, period_normalised: str | None, interval_normalised: str | None):
-    if period_normalised and interval_normalised:
-        intraday_intervals = {"1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h"}
-        if interval_normalised in intraday_intervals:
-            long_periods = {"1y", "2y", "5y", "10y", "max"}
-            if period_normalised in long_periods:
-                raise ValueError(
-                    f"Period '{period}' is not compatible with intraday interval '{interval}'. "
-                    f"For intraday intervals, use shorter periods like '1d', '5d', '1mo', '3mo', or '6mo'."
-                )
-            
+
 def _fetch_historical_data(ticker, symbol, yf_period, yf_interval):
     """Fetch historical price data from yfinance ticker."""
     if not ticker:
@@ -331,3 +241,54 @@ def _validate_and_normalize_parameters(period: str | None, interval: str | None)
         raise ValueError("A 'period' must be supplied when using an intraday interval (under 1d).")
     
     return period_normalised, interval_normalised
+
+def _trim_dataframe_to_period(df: pd.DataFrame, period_str: str | None) -> pd.DataFrame:
+    """Return slice of *df* matching the requested *period*. When *period*
+    is None or 'max' the DataFrame is returned unchanged.  For 'ytd' we
+    slice from 1-Jan of the current year.  For the remaining period
+    strings we use a pandas offset alias (preferred) or a date delta
+    approximation.
+    """
+    if not period_str or period_str == "max":
+        return df
+
+    if period_str == "ytd":
+        jan_first = datetime(datetime.utcnow().year, 1, 1)
+        return df[df.index >= jan_first]
+
+    alias_map = {
+        "1d": "1D",
+        "5d": "5D",
+        "1mo": "1M",
+        "3mo": "3M",
+        "6mo": "6M",
+        "1y": "1Y",
+        "2y": "2Y",
+        "5y": "5Y",
+        "10y": "10Y",
+    }
+    offset = alias_map.get(period_str)
+    if offset:
+        try:
+            return df.iloc[-offset:]
+        except Exception:
+            # In case .last() fails (e.g., intraday index), fall back to timedelta
+            pass
+
+    delta_days_map = {
+        "1d": 1,
+        "5d": 5,
+        "1mo": 30,
+        "3mo": 90,
+        "6mo": 180,
+        "1y": 365,
+        "2y": 730,
+        "5y": 1825,
+        "10y": 3650,
+    }
+    days = delta_days_map.get(period_str)
+    if days:
+        cutoff = pd.Timestamp.utcnow() - pd.Timedelta(days=days)
+        return df[df.index >= cutoff]
+
+    return df

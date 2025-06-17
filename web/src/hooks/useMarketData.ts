@@ -36,11 +36,11 @@ const pollTask = async (
  */
 export const useEnrichedMarketData = (
   symbol: string | null,
-  period?: string | null,
-  interval?: string | null,
+  period: string | null = null,
+  interval: string | null = null,
 ) => {
   return useQuery<EnrichedMarketData, Error>({
-    queryKey: ['marketData', symbol, period, interval],
+    queryKey: ['marketData', symbol, interval],
     queryFn: async () => {
       if (!symbol) throw new Error("Symbol is required.");
 
@@ -50,8 +50,8 @@ export const useEnrichedMarketData = (
         null, // no body payload
         {
           params: {
-            period: period ?? undefined,
             interval: interval ?? undefined,
+            period: period === 'max' || period === '10y' ? period : '5y',
           },
         },
       );
