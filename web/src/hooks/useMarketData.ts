@@ -2,7 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/services/apiService';
 import { EnrichedMarketData, TaskStatus } from '@/types/api';
 
-const pollTask = async (taskId: string, retries = 20, interval = 3000): Promise<any> => {
+const pollTask = async (
+  taskId: string,
+  retries = 20,
+  interval = 3000,
+): Promise<unknown> => {
   for (let i = 0; i < retries; i++) {
     await new Promise(resolve => setTimeout(resolve, interval));
     const { data: taskStatus } = await apiClient.get<TaskStatus>(`/tasks/${taskId}`);
@@ -30,14 +34,27 @@ const pollTask = async (taskId: string, retries = 20, interval = 3000): Promise<
 /**
  * Fetches enriched market data for a given stock symbol by triggering and polling a background task.
  */
-export const useEnrichedMarketData = (symbol: string | null) => {
+export const useEnrichedMarketData = (
+  symbol: string | null,
+  period?: string | null,
+  interval?: string | null,
+) => {
   return useQuery<EnrichedMarketData, Error>({
-    queryKey: ['marketData', symbol],
+    queryKey: ['marketData', symbol, period, interval],
     queryFn: async () => {
       if (!symbol) throw new Error("Symbol is required.");
 
       // 1. Trigger the task
-      const { data: task } = await apiClient.post<TaskStatus>(`/market-data/${symbol}`);
+      const { data: task } = await apiClient.post<TaskStatus>(
+        `/market-data/${symbol}`,
+        null, // no body payload
+        {
+          params: {
+            period: period ?? undefined,
+            interval: interval ?? undefined,
+          },
+        },
+      );
       
       // 2. Poll for the result
       const result = await pollTask(task.task_id);

@@ -1,14 +1,20 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import date, datetime
+from datetime import datetime
 
 class OHLCV(BaseModel):
-    date: date
+    date: datetime
     open: float
     high: float
     low: float
     close: float
     volume: int
+    sma_20: Optional[float] = None
+    sma_50: Optional[float] = None
+    sma_100: Optional[float] = None
+    sma_150: Optional[float] = None
+    sma_200: Optional[float] = None
+    rsi_14: Optional[float] = None
 
 class TechnicalIndicators(BaseModel):
     sma_20: Optional[float] = Field(None, description="20-Day Simple Moving Average")

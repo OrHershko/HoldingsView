@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useEnrichedMarketData } from '@/hooks/useMarketData';
 import { Skeleton } from '@/components/ui/skeleton';
 import StockChart from '@/components/StockChart';
@@ -15,7 +15,11 @@ interface StockDetailsViewProps {
 }
 
 const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transactions, portfolioId }) => {
-  const { data: stockData, isLoading, error } = useEnrichedMarketData(symbol);
+  // Period and interval state are lifted here so that data is re-fetched when they change
+  const [period, setPeriod] = useState<string>('1y');
+  const [interval, setInterval] = useState<string>('1d');
+
+  const { data: stockData, isLoading, error } = useEnrichedMarketData(symbol, period, interval);
 
   if (!symbol) {
     return (
@@ -43,7 +47,13 @@ const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transaction
 
   return (
     <div className="space-y-6">
-      <StockChart stockData={stockData as EnrichedMarketData} />
+      <StockChart
+        stockData={stockData as EnrichedMarketData}
+        period={period}
+        interval={interval}
+        onPeriodChange={setPeriod}
+        onIntervalChange={setInterval}
+      />
       <AIStockAnalysis stockData={stockData as EnrichedMarketData} />
       <AITradingStrategy stockData={stockData as EnrichedMarketData} />
       <TransactionHistory transactions={transactions} portfolioId={portfolioId} />

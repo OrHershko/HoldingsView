@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, status, Depends, HTTPException, Query
 
 from api.auth.firebase import get_current_user
 from api.tasks import (
@@ -19,14 +19,24 @@ router = APIRouter()
     summary="Trigger Enriched Market Data Fetch For Symbol",
     dependencies=[Depends(get_current_user)],
 )
-def trigger_market_data_for_symbol(symbol: str):
+def trigger_market_data_for_symbol(
+    symbol: str,
+    period: str | None = Query(
+        None,
+        description="yfinance period string, e.g. '1y', '5d', 'max'. Leave empty for default.",
+    ),
+    interval: str | None = Query(
+        None,
+        description="yfinance interval string, e.g. '1d', '15m'. Leave empty for default.",
+    ),
+):
     """
     Submits a background task to fetch and analyze market data for a symbol.
     This endpoint returns immediately with a `task_id`. Use the
     `/api/v1/tasks/{task_id}` endpoint to check the status and retrieve the
     result once the task is complete.
     """
-    task = get_enriched_market_data_task.delay(symbol.upper())
+    task = get_enriched_market_data_task.delay(symbol.upper(), period=period, interval=interval)
     return TaskStatus(task_id=task.id, status="PENDING")
 
 

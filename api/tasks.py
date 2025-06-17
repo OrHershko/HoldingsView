@@ -90,16 +90,25 @@ def create_snapshots_for_all_portfolios():
 
 
 @celery_app.task(name="tasks.get_enriched_market_data_task")
-def get_enriched_market_data_task(symbol: str):
+def get_enriched_market_data_task(symbol: str, **kwargs):
     """
     Celery task to fetch enriched market data.
     """
     from api.services import market_data_aggregator
     
     try:
-        data = asyncio.run(market_data_aggregator.get_enriched_market_data(symbol))
+        period: str | None = kwargs.get("period")
+        interval: str | None = kwargs.get("interval")
+        print(f"DEBUG TASK: symbol={symbol!r}, period={period!r}, interval={interval!r}")
+        data = asyncio.run(
+            market_data_aggregator.get_enriched_market_data(
+                symbol, period=period, interval=interval
+            )
+        )
         return data.model_dump(mode="json")
     except Exception as e:
+        import traceback
+        print(f"FULL ERROR: {traceback.format_exc()}")
         return {"error": str(e), "symbol": symbol}
 
 

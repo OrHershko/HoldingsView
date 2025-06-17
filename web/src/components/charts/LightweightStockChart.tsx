@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   createChart,
   IChartApi,
@@ -7,111 +7,69 @@ import {
   CandlestickData,
   HistogramData,
   LineData,
+  LineSeries,
   CandlestickSeries,
   HistogramSeries,
+  PriceLineOptions,
 } from 'lightweight-charts';
+import { cn } from '@/lib/utils';
 
-interface ChartDataPoint {
+export interface ChartDataPoint {
   time: UTCTimestamp;
   open: number;
   high: number;
   low: number;
   close: number;
   volume: number;
-}
-
-interface TrendLine {
-  startTime: UTCTimestamp;
-  startPrice: number;
-  endTime: UTCTimestamp;
-  endPrice: number;
-}
-
-enum DrawMode {
-  None = 'none',
-  Line = 'line',
+  sma_20?: number;
+  sma_50?: number;
+  sma_100?: number;
+  sma_150?: number;
+  sma_200?: number;
+  rsi_14?: number;
 }
 
 interface LightweightStockChartProps {
   data: ChartDataPoint[];
+  visibleIndicators: { [key: string]: boolean };
+  timeframe: string;
 }
 
-const toSeriesData = (rawData: ChartDataPoint[]) => {
-  const candles: CandlestickData[] = [];
-  const volume: HistogramData[] = [];
+const toCandle = (d: ChartDataPoint): CandlestickData => ({
+  time: d.time, open: d.open, high: d.high, low: d.low, close: d.close,
+});
 
-  rawData.forEach(d => {
-    candles.push({
-      time: d.time,
-      open: d.open,
-      high: d.high,
-      low: d.low,
-      close: d.close,
-    });
-    volume.push({
-      time: d.time,
-      value: d.volume,
-      color: d.close >= d.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
-    });
-  });
-  
-  return { candles, volume };
+const toVolume = (d: ChartDataPoint): HistogramData => ({
+  time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+});
+
+const toLine = (d: ChartDataPoint, key: keyof ChartDataPoint): LineData | null => {
+  const value = d[key];
+  return typeof value === 'number' ? { time: d.time, value } : null;
 };
 
-const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data }) => {
+const indicatorConfig = {
+  sma20: { color: '#2962FF', key: 'sma_20' },
+  sma50: { color: '#FF6D00', key: 'sma_50' },
+  sma100: { color: '#F50057', key: 'sma_100' },
+  sma150: { color: '#FFEA00', key: 'sma_150' },
+  sma200: { color: '#76FF03', key: 'sma_200' },
+};
+
+const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data, visibleIndicators, timeframe }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const rsiContainerRef = useRef<HTMLDivElement>(null);
+
   const chartRef = useRef<IChartApi | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const rsiChartRef = useRef<IChartApi | null>(null);
 
-  const [drawMode, setDrawMode] = useState<DrawMode>(DrawMode.None);
-  const [trendLines, setTrendLines] = useState<TrendLine[]>([]);
-  const pendingPointRef = useRef<{ time: UTCTimestamp; price: number } | null>(null);
-
-  const drawLines = useCallback(() => {
-    if (!canvasRef.current || !chartRef.current || !candleSeriesRef.current) return;
-
-    const canvas = canvasRef.current;
-    const container = chartContainerRef.current;
-    if (!container) return;
-
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#eab308';
-    ctx.lineWidth = 2;
-
-    trendLines.forEach(line => {
-      const x1 = chartRef.current!.timeScale().timeToCoordinate(line.startTime);
-      const x2 = chartRef.current!.timeScale().timeToCoordinate(line.endTime);
-      if (x1 === null || x2 === null) return;
-      const y1 = candleSeriesRef.current!.priceToCoordinate(line.startPrice);
-      const y2 = candleSeriesRef.current!.priceToCoordinate(line.endPrice);
-      if (y1 === null || y2 === null) return;
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-    });
-  }, [trendLines]);
-
-  useEffect(() => {
-    drawLines();
-  }, [drawLines]);
+  const seriesRef = useRef<{ [key: string]: ISeriesApi<'Line'> | ISeriesApi<'Candlestick'> | ISeriesApi<'Histogram'> }>({});
 
   useEffect(() => {
     if (!chartContainerRef.current || data.length === 0) return;
 
-    if (chartRef.current) {
-        chartRef.current.remove();
-        chartRef.current = null;
-    }
-
-    const chart = createChart(chartContainerRef.current, {
+    // --- Chart Initialization ---
+    chartRef.current = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 400,
       layout: { background: { color: 'transparent' }, textColor: '#D1D5DB' },
@@ -119,122 +77,199 @@ const LightweightStockChart: React.FC<LightweightStockChartProps> = ({ data }) =
       rightPriceScale: { borderColor: '#4B5563' },
       timeScale: { borderColor: '#4B5563', timeVisible: true, secondsVisible: false },
       crosshair: { mode: 1 },
+      handleScale: {
+        axisPressedMouseMove: true,
+        pinch: true,
+        mouseWheel: true,
+      },
+      handleScroll: {
+        pressedMouseMove: true,
+        mouseWheel: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
     });
-    chartRef.current = chart;
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#22c55e', // green-500
-      downColor: '#ef4444', // red-500
-      borderVisible: false,
-      wickUpColor: '#22c55e',
-      wickDownColor: '#ef4444',
+    const candleSeries = chartRef.current.addSeries(CandlestickSeries, {
+      upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350',
     });
+    candleSeries.setData(data.map(toCandle));
+    seriesRef.current.candles = candleSeries;
 
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'volume_scale',
-      lastValueVisible: false,
-      priceLineVisible: false,
+    const volumeSeries = chartRef.current.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' }, priceScaleId: 'volume_scale', lastValueVisible: false, priceLineVisible: false,
     });
-    chart.priceScale('volume_scale').applyOptions({
-      scaleMargins: { top: 0.85, bottom: 0 },
-    });
-    
-    const { candles, volume } = toSeriesData(data);
-    candleSeries.setData(candles);
-    volumeSeries.setData(volume);
+    chartRef.current.priceScale('volume_scale').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    volumeSeries.setData(data.map(toVolume));
+    seriesRef.current.volume = volumeSeries;
 
-    candleSeriesRef.current = candleSeries;
-
-    // --- Drawing subscriptions ---
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleChartClick = (param: any) => {
-      if (drawMode !== DrawMode.Line || !param.point || param.time === undefined) {
-        return;
-      }
-      if (!candleSeriesRef.current) return;
-      const price = candleSeriesRef.current.coordinateToPrice(param.point.y);
-      if (price === null) return;
-
-      if (!pendingPointRef.current) {
-        pendingPointRef.current = { time: param.time as UTCTimestamp, price };
-      } else {
-        const newLine: TrendLine = {
-          startTime: pendingPointRef.current.time,
-          startPrice: pendingPointRef.current.price,
-          endTime: param.time as UTCTimestamp,
-          endPrice: price,
-        };
-        setTrendLines(prev => [...prev, newLine]);
-        pendingPointRef.current = null;
-      }
-    };
-
-    chart.subscribeClick(handleChartClick);
-    const timeScale = chart.timeScale();
-    const handleRangeChange = () => {
-      drawLines();
-    };
-    timeScale.subscribeVisibleTimeRangeChange(handleRangeChange);
-
-    // resize redraw also
+    // --- Resize Handler ---
     const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-        drawLines();
-      }
+      chartRef.current?.applyOptions({ width: chartContainerRef.current!.clientWidth });
+      rsiChartRef.current?.applyOptions({ width: rsiContainerRef.current!.clientWidth });
     };
 
     window.addEventListener('resize', handleResize);
+
+    // --- Cleanup ---
     return () => {
       window.removeEventListener('resize', handleResize);
-      chart.unsubscribeClick(handleChartClick);
-      timeScale.unsubscribeVisibleTimeRangeChange(handleRangeChange);
-      chart.remove();
+      chartRef.current?.remove();
+      rsiChartRef.current?.remove();
       chartRef.current = null;
-      candleSeriesRef.current = null;
+      rsiChartRef.current = null;
+      seriesRef.current = {}; // Clear all series references
     };
-  }, [data, drawMode, drawLines]);
+  }, [data]); // Only re-create charts when data changes fundamentally
+
+  // --- Sync Logic ---
+  useEffect(() => {
+    const mainChart = chartRef.current;
+    const rsiChart = rsiChartRef.current;
+    if (!mainChart || !rsiChart) return;
+    
+    const syncTimeScale = (timeRange: { from: UTCTimestamp; to: UTCTimestamp } | null) => {
+      if (timeRange) {
+        rsiChart.timeScale().setVisibleRange(timeRange);
+        mainChart.timeScale().setVisibleRange(timeRange);
+      }
+    };
+    
+    mainChart.timeScale().subscribeVisibleTimeRangeChange(syncTimeScale);
+    rsiChart.timeScale().subscribeVisibleTimeRangeChange(syncTimeScale);
+
+    return () => {
+      mainChart.timeScale().unsubscribeVisibleTimeRangeChange(syncTimeScale);
+      rsiChart.timeScale().unsubscribeVisibleTimeRangeChange(syncTimeScale);
+    };
+  }, [rsiChartRef.current]); // Re-bind when RSI chart is created/destroyed
+
+  // --- Indicator Management ---
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || data.length === 0) return;
+
+    Object.keys(indicatorConfig).forEach(key => {
+      const isVisible = visibleIndicators[key];
+      const seriesExists = !!seriesRef.current[key];
+      const config = indicatorConfig[key as keyof typeof indicatorConfig];
+
+      if (isVisible && !seriesExists) {
+        const lineSeries = chart.addSeries(LineSeries, { color: config.color, lineWidth: 2, lastValueVisible: false, priceLineVisible: false });
+        const lineData = data.map(d => toLine(d, config.key as keyof ChartDataPoint)).filter(Boolean) as LineData[];
+        lineSeries.setData(lineData);
+        seriesRef.current[key] = lineSeries;
+      } else if (!isVisible && seriesExists) {
+        const series = seriesRef.current[key];
+        if (series) {
+          chart.removeSeries(series);
+        }
+        delete seriesRef.current[key];
+      }
+    });
+
+    const rsiVisible = visibleIndicators.rsi;
+    const rsiSeriesExists = !!seriesRef.current.rsi;
+
+    if (rsiVisible && !rsiSeriesExists && rsiContainerRef.current) {
+        rsiChartRef.current = createChart(rsiContainerRef.current, {
+             width: rsiContainerRef.current.clientWidth, height: 128, layout: { background: { color: 'transparent' }, textColor: '#D1D5DB' },
+             grid: { vertLines: { color: '#374151' }, horzLines: { color: '#374151' } }, rightPriceScale: { borderColor: '#4B5563', visible: false },
+             timeScale: { borderColor: '#4B5563', visible: false }, crosshair: { mode: 1 },
+             handleScale: { axisPressedMouseMove: false, pinch: true, mouseWheel: true },
+             handleScroll: { pressedMouseMove: true, mouseWheel: true, horzTouchDrag: true, vertTouchDrag: true },
+        });
+        const rsiSeries = rsiChartRef.current.addSeries(LineSeries, { color: '#9c27b0', lineWidth: 2 });
+        const rsiData = data.map(d => toLine(d, 'rsi_14')).filter(Boolean) as LineData[];
+        rsiSeries.setData(rsiData);
+        seriesRef.current.rsi = rsiSeries;
+        
+        // Add Overbought/Oversold lines
+        const overboughtLine: PriceLineOptions = { 
+          price: 70, 
+          color: '#ef5350', 
+          lineWidth: 1, 
+          lineStyle: 2, 
+          axisLabelVisible: true, 
+          title: 'Overbought',
+          lineVisible: true,
+          axisLabelColor: '#ef5350',
+          axisLabelTextColor: '#ffffff'
+        };
+        const oversoldLine: PriceLineOptions = { 
+          price: 30, 
+          color: '#26a69a', 
+          lineWidth: 1, 
+          lineStyle: 2, 
+          axisLabelVisible: true, 
+          title: 'Oversold',
+          lineVisible: true,
+          axisLabelColor: '#26a69a',
+          axisLabelTextColor: '#ffffff'
+        };
+        rsiSeries.createPriceLine(overboughtLine);
+        rsiSeries.createPriceLine(oversoldLine);
+
+    } else if (!rsiVisible && rsiSeriesExists) {
+        rsiChartRef.current?.remove();
+        rsiChartRef.current = null;
+        delete seriesRef.current.rsi;
+    }
+
+  }, [visibleIndicators, data]);
+
+  // --- Timeframe Management ---
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || data.length === 0) return;
+
+    const timeScale = chart.timeScale();
+    const lastDataPoint = data[data.length - 1];
+    
+    const timeframeLower = timeframe.toLowerCase();
+    
+    if (timeframeLower === 'all' || timeframeLower === 'max') {
+        timeScale.fitContent();
+        return;
+    }
+    
+    const to = lastDataPoint.time;
+    const toDate = new Date(to * 1000);
+    const fromDate = new Date(toDate);
+
+    switch(timeframeLower) {
+        case '1d': fromDate.setDate(toDate.getDate() - 1); break;
+        case '5d': fromDate.setDate(toDate.getDate() - 5); break;
+        case '1mo': fromDate.setMonth(toDate.getMonth() - 1); break;
+        case '3mo': fromDate.setMonth(toDate.getMonth() - 3); break;
+        case '6mo': fromDate.setMonth(toDate.getMonth() - 6); break;
+        case 'ytd': fromDate.setFullYear(toDate.getFullYear(), 0, 1); break; // Jan 1 of current year
+        case '1y': fromDate.setFullYear(toDate.getFullYear() - 1); break;
+        case '2y': fromDate.setFullYear(toDate.getFullYear() - 2); break;
+        case '5y': fromDate.setFullYear(toDate.getFullYear() - 5); break;
+        case '10y': fromDate.setFullYear(toDate.getFullYear() - 10); break;
+        case 'all':
+        case 'max':
+            timeScale.fitContent();
+            return;
+    }
+    
+    const from = (fromDate.getTime() / 1000) as UTCTimestamp;
+    timeScale.setVisibleRange({ from, to });
+
+  }, [timeframe, data]);
+
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <div ref={chartContainerRef} style={{ width: '100%' }} />
-      {/* Drawing canvas overlay */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-        }}
-      />
-      {/* Simple toolbar */}
+      <div ref={chartContainerRef} className="w-full" />
       <div
-        style={{ position: 'absolute', top: 8, left: 8, zIndex: 20 }}
-        className="flex gap-2"
-      >
-        <button
-          onClick={() =>
-            setDrawMode(prev => (prev === DrawMode.Line ? DrawMode.None : DrawMode.Line))
-          }
-          className={`px-2 py-1 rounded text-sm ${drawMode === DrawMode.Line ? 'bg-amber-500 text-black' : 'bg-gray-700 text-white'}`}
-        >
-          {drawMode === DrawMode.Line ? 'Stop Drawing' : 'Draw Line'}
-        </button>
-        <button
-          onClick={() => {
-            setTrendLines([]);
-            pendingPointRef.current = null;
-            drawLines();
-          }}
-          className="px-2 py-1 rounded text-sm bg-red-600 text-white"
-        >
-          Clear Lines
-        </button>
-      </div>
+        ref={rsiContainerRef}
+        className={cn(
+            'w-full transition-all duration-300 overflow-hidden',
+            visibleIndicators.rsi ? 'h-32 mt-2' : 'h-0'
+        )}
+      />
     </div>
   );
 };
