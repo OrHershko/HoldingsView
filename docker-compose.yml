@@ -1,11 +1,26 @@
+version: "3.9"
+
 services:
   api:
-    image: "orhershko/holdingsview-api:latest"
-    ports:
-      - "80:8000"
-    mem_limit: 256m
+    image: orhershko/holdingsview-api:latest
+    ports: ["80:8000"]
+    environment:
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS}
+      FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: ${FIREBASE_SERVICE_ACCOUNT_JSON_BASE64}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      PRODUCTION_DATABASE_URL: ${PRODUCTION_DATABASE_URL}
+      REDIS_URL_DOCKER: ${REDIS_URL_DOCKER}
+      ENVIRONMENT: ${ENVIRONMENT}
+      DISABLE_AUTH_FOR_DEV: ${DISABLE_AUTH_FOR_DEV}
 
   worker:
-    image: "orhershko/holdingsview-worker:latest"
+    image: orhershko/holdingsview-worker:latest
     command: ["celery", "-A", "api.worker.celery_app", "worker", "--loglevel=info"]
-    mem_limit: 256m
+    environment:
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS}
+      FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: ${FIREBASE_SERVICE_ACCOUNT_JSON_BASE64}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      PRODUCTION_DATABASE_URL: ${PRODUCTION_DATABASE_URL}
+      REDIS_URL_DOCKER: ${REDIS_URL_DOCKER}
+      ENVIRONMENT: ${ENVIRONMENT}
+      DISABLE_AUTH_FOR_DEV: ${DISABLE_AUTH_FOR_DEV}
