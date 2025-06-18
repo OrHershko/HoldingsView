@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
 import httpx
 
@@ -63,8 +63,7 @@ def sample_enriched_data() -> EnrichedMarketData:
             description="A big tech company.",
         ),
         trading_info=TradingInfo(
-            market_state="REGULAR",
-            regular_market_change_percent=0.015
+            market_state="REGULAR", regular_market_change_percent=0.015
         ),
         news=[
             NewsArticle(
@@ -96,12 +95,11 @@ async def test_analyze_portfolio_success(
     mock_response_content = "This is a successful AI analysis."
     mock_response_json = {"choices": [{"message": {"content": mock_response_content}}]}
 
-    # Create a mock response object that can be awaited for its .json() method
-    mock_response = AsyncMock()
+    # Mock the httpx Response object. .json() is async, .raise_for_status() is sync.
+    mock_response = MagicMock()
     mock_response.json = AsyncMock(return_value=mock_response_json)
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
-    # Patch the post method to return our mock response
     mocker.patch("httpx.AsyncClient.post", return_value=mock_response)
 
     result = await analyze_portfolio(sample_calculated_holdings)
@@ -130,8 +128,10 @@ async def test_analyze_portfolio_no_api_key(
     """Tests that the function returns a config error if the API key is missing."""
     mocker.patch.object(settings, "OPENROUTER_API_KEY", None)
 
+    # The exception is raised from chat_completion and caught/reformatted in analyze_portfolio
     result = await analyze_portfolio(sample_calculated_holdings)
-    assert "AI analysis is not configured" in result
+    assert "AI analysis could not be completed" in result
+    assert "Missing OPENROUTER_API_KEY" in result
 
 
 @pytest.mark.asyncio
@@ -141,14 +141,17 @@ async def test_analyze_portfolio_malformed_response(
     """Tests handling of a response with unexpected structure."""
     malformed_json = {"unexpected_key": "some_value"}  # Missing 'choices'
 
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.json = AsyncMock(return_value=malformed_json)
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
     mocker.patch("httpx.AsyncClient.post", return_value=mock_response)
 
     result = await analyze_portfolio(sample_calculated_holdings)
-    assert "Received an unexpected response from the AI service" in result
+
+    # Assert the new, more specific error message.
+    assert "AI analysis could not be completed" in result
+    assert "Malformed response received from OpenRouter" in result
 
 
 def test_format_stock_data_for_prompt(sample_enriched_data: EnrichedMarketData):
@@ -179,9 +182,9 @@ async def test_analyze_stock_deep_dive_success(
     mock_response_content = "This is a successful deep-dive analysis."
     mock_response_json = {"choices": [{"message": {"content": mock_response_content}}]}
 
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.json = AsyncMock(return_value=mock_response_json)
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
     mock_post = mocker.patch("httpx.AsyncClient.post", return_value=mock_response)
 

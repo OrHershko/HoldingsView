@@ -40,16 +40,22 @@ async def test_read_portfolio_by_id_with_full_analysis(authenticated_client: tup
     
     crud_transaction.create_with_portfolio(db, obj_in=TransactionCreate(symbol="AAPL", transaction_type="BUY", quantity=10, price=100, transaction_date=date.today()), portfolio_id=portfolio.id)
     
-    mock_prices = {"AAPL": 150.0}
-    mocker.patch("api.services.market_data_service.get_current_prices", return_value=mock_prices)
+    # Mock the service to return the new, correct data structure
+    mock_prices = {
+        "AAPL": {"price": 150.0, "change": 2.5, "change_percent": 1.69}
+    }
+    mocker.patch(
+        "api.services.market_data_service.get_current_prices", return_value=mock_prices
+    )
 
     response = client.get(f"{settings.API_V1_STR}/portfolios/{portfolio.id}")
     assert response.status_code == 200
     data = response.json()
     
     assert data["name"] == portfolio.name
-    assert data["total_market_value"] == 1500.0
-    assert data["total_cost_basis"] == 1000.0
+    assert data["total_market_value"] == 1500.0  # 10 * 150.0
+    assert data["total_cost_basis"] == 1000.0  # 10 * 100.0
+    assert data["total_todays_change"] == 25.0  # 10 * 2.5
 
 def test_read_portfolio_not_owned_by_user(authenticated_client: tuple[TestClient, User], db: Session) -> None:
     client, _ = authenticated_client

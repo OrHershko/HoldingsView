@@ -31,16 +31,20 @@ def format_stock_data_for_prompt(data: EnrichedMarketData) -> str:
     trading_status_parts = [f"Market is {ti.market_state}."]
     if ti.market_state == "REGULAR":
         if ti.regular_market_change_percent is not None:
-            change_str = f"{ti.regular_market_change_percent:+.2f}%"
+            change_str = f"{ti.regular_market_change_percent * 100:+.2f}%"
             trading_status_parts.append(f"Today's Change: {change_str}")
     elif ti.market_state == "PRE":
         if ti.pre_market_price is not None and ti.pre_market_change_percent is not None:
-            change_str = f"{ti.pre_market_change_percent:+.2f}%"
-            trading_status_parts.append(f"Pre-Market: ${ti.pre_market_price:.2f} ({change_str})")
+            change_str = f"{ti.pre_market_change_percent * 100:+.2f}%"
+            trading_status_parts.append(
+                f"Pre-Market: ${ti.pre_market_price:.2f} ({change_str})"
+            )
     elif ti.market_state == "POST":
         if ti.post_market_price is not None and ti.post_market_change_percent is not None:
-            change_str = f"{ti.post_market_change_percent:+.2f}%"
-            trading_status_parts.append(f"Post-Market: ${ti.post_market_price:.2f} ({change_str})")
+            change_str = f"{ti.post_market_change_percent * 100:+.2f}%"
+            trading_status_parts.append(
+                f"Post-Market: ${ti.post_market_price:.2f} ({change_str})"
+            )
     trading_status_str = " ".join(trading_status_parts)
 
     valuation_list: list[str] = []
@@ -51,7 +55,9 @@ def format_stock_data_for_prompt(data: EnrichedMarketData) -> str:
     if f.price_to_book_ratio:
         valuation_list.append(f"- Price-to-Book Ratio: {f.price_to_book_ratio:.2f}")
     if f.price_to_sales_ratio:
-        valuation_list.append(f"- Price-to-Sales Ratio (TTM): {f.price_to_sales_ratio:.2f}")
+        valuation_list.append(
+            f"- Price-to-Sales Ratio (TTM): {f.price_to_sales_ratio:.2f}"
+        )
 
     financials_list: list[str] = []
     if f.market_cap:
@@ -76,12 +82,20 @@ def format_stock_data_for_prompt(data: EnrichedMarketData) -> str:
         trend = "Uptrend" if t.sma_50 > t.sma_200 else "Downtrend"
         technicals_list.append(f"- 50-Day vs 200-Day SMA: {trend}")
     if f.week_52_high and f.week_52_low:
-        technicals_list.append(f"- 52-Week Range: ${f.week_52_low:.2f} - ${f.week_52_high:.2f}")
+        technicals_list.append(
+            f"- 52-Week Range: ${f.week_52_low:.2f} - ${f.week_52_high:.2f}"
+        )
     if t.rsi_14:
-        rsi_condition = "Overbought" if t.rsi_14 > 70 else "Oversold" if t.rsi_14 < 30 else "Neutral"
+        rsi_condition = (
+            "Overbought" if t.rsi_14 > 70 else "Oversold" if t.rsi_14 < 30 else "Neutral"
+        )
         technicals_list.append(f"- RSI (14): {t.rsi_14:.2f} ({rsi_condition})")
-    
-    news_str = "\n".join([f"- {n.title} ({n.publisher})" for n in data.news[:5]]) if data.news else "N/A"
+
+    news_str = (
+        "\n".join([f"- {n.title} ({n.publisher})" for n in data.news[:5]])
+        if data.news
+        else "N/A"
+    )
 
     # Pre-computed sections to avoid backslashes in f-string expressions
     valuation_str = "\n".join(valuation_list) if valuation_list else "N/A"
@@ -132,21 +146,25 @@ async def analyze_portfolio(holdings: List[CalculatedHolding]) -> str:
     user_prompt = f"Here are the portfolio holdings:\n{holdings_str}"
 
     try:
-        data = await chat_completion(
+        response = await chat_completion(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             timeout=30.0,
         )
-        return data["choices"][0]["message"]["content"]
+        return response["choices"][0]["message"]["content"]
     except OpenRouterError as e:
-        return f"Received an unexpected response from the AI service: {e}"
-    except (KeyError, IndexError) as e:
-        return f"Received an unexpected response from the AI service: {e}"
+        # Return a user-friendly error message
+        return f"AI analysis could not be completed at this time. Details: {e}"
+    except (KeyError, IndexError, TypeError):
+        # Handle cases where the response structure is not as expected
+        return "Received an unexpected response from the AI service."
 
 
-async def analyze_stock_deep_dive(data: EnrichedMarketData, language: str = "English") -> str:
+async def analyze_stock_deep_dive(
+    data: EnrichedMarketData, language: str = "English"
+) -> str:
     """
     Performs a deep-dive analysis on a stock using its enriched data.
     """
@@ -180,28 +198,30 @@ async def analyze_stock_deep_dive(data: EnrichedMarketData, language: str = "Eng
     user_prompt = f"Please provide a deep-dive analysis for the following stock based on this data:\n\n{formatted_data}"
 
     try:
-        data = await chat_completion(
+        response = await chat_completion(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             timeout=60.0,
         )
-        return data["choices"][0]["message"]["content"]
+        return response["choices"][0]["message"]["content"]
     except OpenRouterError as e:
         raise ConnectionError(str(e)) from e
     except (KeyError, IndexError) as e:
         return f"Received an unexpected response from the AI service: {e}"
 
 
-async def generate_trading_strategy(data: EnrichedMarketData, language: str = "English") -> TradingStrategy:
+async def generate_trading_strategy(
+    data: EnrichedMarketData, language: str = "English"
+) -> TradingStrategy:
     """
     Generates an actionable trading strategy using an AI model.
     """
     formatted_data = format_stock_data_for_prompt(data)
 
     system_prompt = f"""
-You are a quantitative trading analyst. Your task is to devise a short-term (1-4 week) 
+You are a quantitative trading analyst. Your task is to devise a short-term (1-4 week)
 trading strategy based on the provided technical indicators and recent news.
 
 YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT THAT CONFORMS TO THIS PYDANTIC SCHEMA:
@@ -218,10 +238,12 @@ which technical indicators (e.g., RSI, MACD, SMAs) and news items led to your co
 Be concise and direct.
 THE LANGUAGE OF THE RATIONALE SHOULD BE WRITTEN IN {language.upper()}.
 """
-    user_prompt = f"Generate a trading strategy for the following stock data:\n\n{formatted_data}"
+    user_prompt = (
+        f"Generate a trading strategy for the following stock data:\n\n{formatted_data}"
+    )
 
     try:
-        data = await chat_completion(
+        response = await chat_completion(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -230,10 +252,9 @@ THE LANGUAGE OF THE RATIONALE SHOULD BE WRITTEN IN {language.upper()}.
             extra_params={"response_format": {"type": "json_object"}},
         )
 
-        strategy_json_str = data["choices"][0]["message"]["content"]
+        strategy_json_str = response["choices"][0]["message"]["content"]
 
         strategy_data = json.loads(strategy_json_str)
-        print(strategy_data)
         return TradingStrategy(**strategy_data)
     except OpenRouterError as e:
         raise ConnectionError(str(e)) from e

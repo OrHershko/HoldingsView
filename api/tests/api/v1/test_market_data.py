@@ -35,14 +35,19 @@ async def test_analyze_stock_dispatches_task(
     mock_task = mocker.patch("api.tasks.run_deep_dive_analysis_task.delay")
     mock_task.return_value.id = "test-task-id-analyze"
 
-    response = client.post(f"{settings.API_V1_STR}/market-data/MOCK/analyze")
+    response = client.post(
+        f"{settings.API_V1_STR}/market-data/MOCK/analyze",
+        json={"language": "English"},
+    )
 
     assert response.status_code == 202
     data = response.json()
     assert data["task_id"] == "test-task-id-analyze"
     assert data["status"] == "PENDING"
-    # Verify delay was called with the serialized data
-    mock_task.assert_called_once_with(mock_enriched_market_data.model_dump(mode="json"))
+    # Verify delay was called with the serialized data and the language
+    mock_task.assert_called_once_with(
+        mock_enriched_market_data.model_dump(mode="json"), language="English"
+    )
 
 
 @pytest.mark.asyncio
@@ -63,10 +68,15 @@ async def test_get_trading_strategy_dispatches_task(
     mock_task = mocker.patch("api.tasks.run_trading_strategy_task.delay")
     mock_task.return_value.id = "test-task-id-strategize"
 
-    response = client.post(f"{settings.API_V1_STR}/market-data/MOCK/strategize")
+    response = client.post(
+        f"{settings.API_V1_STR}/market-data/MOCK/strategize",
+        json={"language": "English"},
+    )
 
     assert response.status_code == 202
     data = response.json()
     assert data["task_id"] == "test-task-id-strategize"
     assert data["status"] == "PENDING"
-    mock_task.assert_called_once_with(mock_enriched_market_data.model_dump(mode="json"))
+    mock_task.assert_called_once_with(
+        mock_enriched_market_data.model_dump(mode="json"), language="English"
+    )

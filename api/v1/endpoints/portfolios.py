@@ -84,54 +84,76 @@ async def read_portfolio(
 
     # 1. Calculate base holdings (symbol, quantity, cost basis) from transactions.
     base_holdings = calculate_holdings_from_transactions(portfolio.transactions)
-    
+
     # 2. Get unique symbols from the calculated holdings to fetch market data.
     unique_symbols = [h.symbol for h in base_holdings]
-    
+
     # 3. Fetch current prices and daily changes for these symbols.
     market_data = await market_data_service.get_current_prices(unique_symbols)
-    
+
     # 4. Enrich holdings with market data and calculate market value, P/L, etc.
     enriched_holdings: List[CalculatedHolding] = []
     total_todays_change = 0.0
     for holding in base_holdings:
         symbol_data = market_data.get(holding.symbol)
-        if symbol_data:
-            current_price = symbol_data.get("price")
-            todays_change = symbol_data.get("change", 0.0)
+        current_price = None
+        todays_change = 0.0
+        todays_change_percent = 0.0
 
-            if current_price is not None:
-                holding.current_price = current_price
-                holding.market_value = holding.quantity * current_price
-                holding.unrealized_gain_loss = holding.market_value - holding.total_cost_basis
-                if holding.total_cost_basis > 0:
-                    holding.unrealized_gain_loss_percent = (holding.unrealized_gain_loss / holding.total_cost_basis) * 100
-                else:
-                    holding.unrealized_gain_loss_percent = 0.0
-                
-                # Add today's change data
-                holding.todays_change = todays_change
-                holding.todays_change_percent = symbol_data.get("change_percent", 0.0)
+        if symbol_data is not None:
+            if isinstance(symbol_data, dict):
+                current_price = symbol_data.get("price")
+                todays_change = symbol_data.get("change", 0.0)
+                todays_change_percent = symbol_data.get("change_percent", 0.0)
+            else:
+                # Handle legacy float format
+                current_price = symbol_data
 
-                # Add to portfolio's total change
-                total_todays_change += holding.quantity * todays_change
+        if current_price is not None:
+            holding.current_price = current_price
+            holding.market_value = holding.quantity * current_price
+            holding.unrealized_gain_loss = (
+                holding.market_value - holding.total_cost_basis
+            )
+            if holding.total_cost_basis > 0:
+                holding.unrealized_gain_loss_percent = (
+                    holding.unrealized_gain_loss / holding.total_cost_basis
+                ) * 100
+            else:
+                holding.unrealized_gain_loss_percent = 0.0
+
+            # Add today's change data
+            holding.todays_change = todays_change
+            holding.todays_change_percent = todays_change_percent
+
+            # Add to portfolio's total change
+            total_todays_change += holding.quantity * todays_change
         enriched_holdings.append(holding)
 
     # 5. Calculate portfolio-level summary from enriched holdings.
-    total_market_value = sum(h.market_value for h in enriched_holdings if h.market_value is not None)
+    total_market_value = sum(
+        h.market_value for h in enriched_holdings if h.market_value is not None
+    )
     total_cost_basis = sum(h.total_cost_basis for h in enriched_holdings)
-    
+
     total_unrealized_gain_loss = 0.0
     if total_market_value > 0 and total_cost_basis > 0:
         total_unrealized_gain_loss = total_market_value - total_cost_basis
-    
+
     total_unrealized_gain_loss_percent = 0.0
     if total_cost_basis > 0:
-        total_unrealized_gain_loss_percent = (total_unrealized_gain_loss / total_cost_basis) * 100
+        total_unrealized_gain_loss_percent = (
+            total_unrealized_gain_loss / total_cost_basis
+        ) * 100
 
     total_todays_change_percent = 0.0
-    if total_market_value > 0:
-        total_todays_change_percent = (total_todays_change / total_market_value) * 100
+    if total_market_value > 0 and total_todays_change != 0:
+        # Prevent division by zero if total value was zero before today's change
+        value_before_change = total_market_value - total_todays_change
+        if value_before_change != 0:
+            total_todays_change_percent = (
+                total_todays_change / value_before_change
+            ) * 100
 
     # 6. Combine portfolio data with calculated holdings and summary for the response.
     portfolio_response_data = {
@@ -148,7 +170,6 @@ async def read_portfolio(
         "total_unrealized_gain_loss": total_unrealized_gain_loss,
         "total_unrealized_gain_loss_percent": total_unrealized_gain_loss_percent,
         "total_todays_change": total_todays_change,
-        "total_todays_change_percent": total_todays_change_percent,
     }
 
     return PortfolioReadWithHoldings(**portfolio_response_data)
@@ -218,10 +239,17 @@ def create_transaction(
     # --- Start of new validation logic ---
     if transaction_in.transaction_type == "SELL":
         # portfolio.transactions is available due to eager loading in crud_portfolio.get
-        calculated_holdings = calculate_holdings_from_transactions(portfolio.transactions)
-        
+        calculated_holdings = calculate_holdings_from_transactions(
+            portfolio.transactions
+        )
+
         current_holding = next(
-            (h for h in calculated_holdings if h.symbol.upper() == transaction_in.symbol.upper()), None
+            (
+                h
+                for h in calculated_holdings
+                if h.symbol.upper() == transaction_in.symbol.upper()
+            ),
+            None,
         )
 
         current_quantity = current_holding.quantity if current_holding else 0.0
@@ -294,7 +322,7 @@ async def get_portfolio_analysis(
 
     # We only need the base holdings (cost basis, etc.) for the AI analysis prompt.
     calculated_holdings = calculate_holdings_from_transactions(portfolio.transactions)
-    
+
     if not calculated_holdings:
         return AnalysisResult(content="Portfolio has no holdings to analyze.")
 
@@ -306,18 +334,20 @@ async def get_portfolio_analysis(
 @router.get(
     "/{portfolio_id}/performance",
     response_model=PortfolioPerformanceData,
-    summary="Get Historical Portfolio Performance"
+    summary="Get Historical Portfolio Performance",
 )
 def get_portfolio_performance(
     *,
     db: Session = Depends(get_db),
     portfolio_id: int,
-    timespan: Literal["1M", "3M", "6M", "1Y", "ALL"] = Query("1Y", description="The time range for the performance data."),
+    timespan: Literal["1M", "3M", "6M", "1Y", "ALL"] = Query(
+        "1Y", description="The time range for the performance data."
+    ),
     current_user: User = Depends(get_current_user),
 ):
     """
     Retrieve the historical performance data for a specific portfolio.
-    
+
     This endpoint returns a time-series of daily snapshots, each containing the
     total market value and cost basis, ready for charting.
     """
@@ -334,7 +364,7 @@ def get_portfolio_performance(
         start_date = end_date - timedelta(days=180)
     elif timespan == "1Y":
         start_date = end_date - timedelta(days=365)
-    else: # ALL
+    else:  # ALL
         start_date = date.min
 
     snapshots = crud_portfolio_snapshot.get_snapshots_by_portfolio(
@@ -342,8 +372,7 @@ def get_portfolio_performance(
     )
 
     return PortfolioPerformanceData(
-        portfolio_id=portfolio_id,
-        performance_history=snapshots
+        portfolio_id=portfolio_id, performance_history=snapshots
     )
 
 
@@ -351,7 +380,7 @@ def get_portfolio_performance(
 @router.post(
     "/{portfolio_id}/trigger-snapshot",
     summary="[DEBUG] Manually trigger a snapshot calculation",
-    include_in_schema=settings.ENVIRONMENT == "development" # Only show in docs for dev
+    include_in_schema=settings.ENVIRONMENT == "development",  # Only show in docs for dev
 )
 def trigger_snapshot_for_portfolio(
     *,
@@ -364,11 +393,13 @@ def trigger_snapshot_for_portfolio(
     a portfolio snapshot. Useful for testing without waiting for the nightly job.
     """
     if settings.ENVIRONMENT != "development":
-        raise HTTPException(status_code=403, detail="This endpoint is only available in development.")
-    
+        raise HTTPException(
+            status_code=403, detail="This endpoint is only available in development."
+        )
+
     portfolio = crud_portfolio.get(db=db, id=portfolio_id, user_id=current_user.id)
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
-    
+
     task = create_portfolio_snapshot.delay(portfolio_id)
     return {"message": "Snapshot creation task dispatched.", "task_id": task.id}
