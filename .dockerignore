@@ -1,2 +1,30 @@
+# .dockerignore
+
+# Git files
+.git
+.gitignore
+
+# Python virtual environment
+.venv
+venv
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local environment files (very important)
+api/.env
+api/.env.prod
+
+# IDE and OS files
+.idea/
+.vscode/
+*.DS_Store
+
+# Elastic Beanstalk configuration files
+.elasticbeanstalk/
+.ebextensions/
 
 .env

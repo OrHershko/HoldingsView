@@ -1,10 +1,9 @@
 import React from 'react';
-import { Menu, LogOut, UserCircle, ArrowLeft } from 'lucide-react';
+import { Menu, LogOut, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/Logo.png';
 
 interface HeaderProps {
   toggleSidebar: () => void;

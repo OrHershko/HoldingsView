@@ -13,80 +13,72 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Holdings View API"
     API_V1_STR: str = "/api/v1"
     
-    # Environment control: "development", "production", or "testing"
     ENVIRONMENT: str = "development"
-    
-    # Set to True to disable Firebase auth for local development and API doc testing.
-    # WARNING: This should NEVER be True in a testing or production environment.
     DISABLE_AUTH_FOR_DEV: bool = False
 
-    # Redis URL for Celery and Caching (Docker service name)
-    REDIS_URL_DOCKER: str = "redis://redis:6379/0"
-    # Redis URL for local development (localhost)
-    REDIS_URL_LOCAL: str = "redis://localhost:6379/0"
+    REDIS_URL_DOCKER: Optional[str] = None
+    REDIS_URL_LOCAL: Optional[str] = None
 
-    # Local Database Configuration
-    POSTGRES_SERVER: str
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
-    POSTGRES_PORT: str
-    POSTGRES_DB_TEST: str
+    # --- MAKE THESE OPTIONAL ---
+    # These are only required for local/testing environments.
+    # In production, we'll use the single PRODUCTION_DATABASE_URL.
+    POSTGRES_SERVER: Optional[str] = None
+    POSTGRES_USER: Optional[str] = None
+    POSTGRES_PASSWORD: Optional[str] = None
+    POSTGRES_DB: Optional[str] = None
+    POSTGRES_PORT: Optional[str] = None
+    POSTGRES_DB_TEST: Optional[str] = None
 
-    # Production Database URL (Supabase)
+    # This is required for production.
     PRODUCTION_DATABASE_URL: Optional[str] = None
 
-    # CORS
+    # These are always required
     BACKEND_CORS_ORIGINS: str
-
-    # Firebase
     FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: str
-    # OpenRouter
     OPENROUTER_API_KEY: str
+
+    DB_SSL_CERT_PATH: str = "/app/core/certs/supabase-ca.pem"
 
     @property
     def REDIS_URL(self) -> str:
-        """Return appropriate Redis URL based on environment and deployment"""
-        # Check if we're running inside Docker by looking for Docker-specific environment variables
-        # or by checking if the redis hostname resolves
         if os.getenv("DOCKER_CONTAINER") or self.ENVIRONMENT.lower() == "production":
             return self.REDIS_URL_DOCKER
         else:
-            # For local development, use localhost
             return self.REDIS_URL_LOCAL
 
     @property
     def DATABASE_URL(self) -> str:
         """Return appropriate database URL based on environment"""
+        # --- Testing Environment ---
         if self.ENVIRONMENT.lower() == "testing":
-            test_url = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_TEST}"
-            # print(f"Using TESTING database: {test_url}")
-            return test_url
-        if self.ENVIRONMENT.lower() == "production" and self.PRODUCTION_DATABASE_URL:
-            # print(f"Using PRODUCTION database: {self.PRODUCTION_DATABASE_URL[:30]}...")
-            return self.PRODUCTION_DATABASE_URL
+            return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_TEST}"
         
-        local_url = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        # print(f"Using DEVELOPMENT database: {local_url}")
-        return local_url
+        # --- Production Environment (Supabase with SSL) ---
+        if self.ENVIRONMENT.lower() == "production":
+            if not self.PRODUCTION_DATABASE_URL:
+                raise ValueError("PRODUCTION_DATABASE_URL must be set in production environment")
+            
+            base_url = self.PRODUCTION_DATABASE_URL
+            
+            if "sslmode" not in base_url:
+                return f"{base_url}?sslmode=require"
+            return base_url
+        
+        # --- Local Development Environment ---
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property
     def FIREBASE_CREDENTIALS(self) -> dict:
-        """
-        Decodes the base64 encoded Firebase service account JSON.
-        """
         try:
             decoded_str = base64.b64decode(self.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64)
             return json.loads(decoded_str)
         except (ValueError, TypeError):
-            # Return dummy config for testing or if var is not set
             print("WARNING: Could not decode FIREBASE_SERVICE_ACCOUNT_JSON_BASE64. Using dummy credentials.")
             return {"type": "service_account", "project_id": "development"}
 
     class Config:
         env_file = ".env"
         case_sensitive = True
-        extra = "ignore"  # Ignore extra fields instead of forbidding them
-
-
+        extra = "ignore"
+        
 settings = Settings()
