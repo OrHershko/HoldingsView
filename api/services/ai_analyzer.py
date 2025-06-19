@@ -202,10 +202,8 @@ async def generate_trading_strategy(
 
     if language.lower() == "english":
         system_prompt = open("api/prompts/strategy_en.txt", "r").read()
-        print(">>> SYSTEM PROMPT:", system_prompt)
     else:
         system_prompt = open("api/prompts/strategy_he.txt", "r").read()
-        print(">>> SYSTEM PROMPT:", system_prompt)
 
     user_prompt = f"Generate a trading strategy in {language.upper()} for the following stock data:\n\n{formatted_data}"
 

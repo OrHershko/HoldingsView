@@ -89,7 +89,7 @@ const AIStockAnalysis: React.FC<AIStockAnalysisProps> = ({ stockData, LanguageOp
 
       {analysis && !isLoading && (
         <div dir={language === 'Hebrew' ? 'rtl' : 'ltr'} className={`${language === 'Hebrew' ? 'text-right' : 'text-left'}`}>
-          <div className={`prose prose-invert prose-sm max-w-none ${language === 'Hebrew' ? 'rtl' : ''}`}>{formattedContent}</div>
+          <div className={`prose prose-invert prose-sm max-w-none`}>{formattedContent}</div>
         </div>
       )}
     </div>

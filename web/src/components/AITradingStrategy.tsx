@@ -19,7 +19,7 @@ const pollTask = async (taskId: string, retries = 20, interval = 3000): Promise<
     await new Promise(resolve => setTimeout(resolve, interval));
     const { data: taskStatus } = await apiClient.get<TaskStatus>(`/tasks/${taskId}`);
     if (taskStatus.status === 'SUCCESS') {
-      if(typeof taskStatus.result === 'object' && 'error' in taskStatus.result && taskStatus.result.error) throw new Error(taskStatus.result.error as string);
+      if(taskStatus.result && typeof taskStatus.result === 'object' && 'error' in taskStatus.result && taskStatus.result.error) throw new Error(taskStatus.result.error as string);
       return taskStatus.result;
     }
     if (taskStatus.status === 'FAILURE') throw new Error(typeof taskStatus.result === 'string' ? taskStatus.result : 'Task failed.');
@@ -80,9 +80,9 @@ const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData, Langua
       
       {isLoading && (
         <div className="space-y-3 mt-4">
-          <Skeleton className="h-6 w-1/4" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-6 w-1/4 bg-gray-500" />
+          <Skeleton className="h-4 w-full bg-gray-500" />
+          <Skeleton className="h-4 w-5/6 bg-gray-500" />
         </div>
       )}
       
@@ -123,8 +123,8 @@ const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData, Langua
 
             <div>
                 <h4 className="font-semibold text-md mb-1">Rationale</h4>
-                <div dir="rtl" className="text-right">
-                    <p className={`text-sm text-gray-300 leading-relaxed ${language === 'Hebrew' ? 'rtl' : ''}`}>{strategy.rationale}</p>
+                <div dir={language === 'Hebrew' ? 'rtl' : 'ltr'} className={language === 'Hebrew' ? 'text-right' : 'text-left'}>
+                    <p className="text-sm text-gray-300 leading-relaxed">{strategy.rationale}</p>
                 </div>
             </div>
 

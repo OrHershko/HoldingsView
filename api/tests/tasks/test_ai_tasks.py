@@ -28,6 +28,7 @@ def test_run_deep_dive_analysis_task_success(mocker, mock_enriched_data_dict):
     # Run the task logic directly, not via .delay()
     result = run_deep_dive_analysis_task(mock_enriched_data_dict)
 
+    assert result is not None
     assert "error" not in result
     assert result["content"] == mock_content
 
@@ -48,6 +49,7 @@ def test_run_trading_strategy_task_success(mocker, mock_enriched_data_dict):
     # Run the task logic directly
     result = run_trading_strategy_task(mock_enriched_data_dict)
     
+    assert result is not None
     assert "error" not in result
     assert result["strategy_type"] == "bullish"
     assert result["confidence"] == "high"
