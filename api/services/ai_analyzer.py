@@ -6,11 +6,6 @@ from api.schemas.market_data import EnrichedMarketData
 from api.schemas.ai import TradingStrategy
 from api.services.openrouter_client import chat_completion, OpenRouterError
 
-strategy_prompt_en = open("api/prompts/strategy_en.txt", "r").read()
-strategy_prompt_he = open("api/prompts/strategy_he.txt", "r").read()
-analysis_prompt_en = open("api/prompts/analysis_en.txt", "r").read()
-analysis_prompt_he = open("api/prompts/analysis_he.txt", "r").read()
-
 
 def format_holdings_for_prompt(holdings: List[CalculatedHolding]) -> str:
     """Formats a list of calculated holding objects into a string for the AI prompt."""
@@ -175,10 +170,10 @@ async def analyze_stock_deep_dive(
     """
     formatted_data = format_stock_data_for_prompt(data)
 
-    if language == "English":
-        system_prompt = analysis_prompt_en
+    if language.lower() == "english":
+        system_prompt = open("api/prompts/analysis_en.txt", "r").read()
     else:
-        system_prompt = analysis_prompt_he
+        system_prompt = open("api/prompts/analysis_he.txt", "r").read()
 
     user_prompt = f"Please provide a deep-dive analysis in {language.upper()} for the following stock based on this data:\n\n{formatted_data}"
 
@@ -204,11 +199,13 @@ async def generate_trading_strategy(
     Generates an actionable trading strategy using an AI model.
     """
     formatted_data = format_stock_data_for_prompt(data)
-    
-    if language == "English":
-        system_prompt = strategy_prompt_en
+
+    if language.lower() == "english":
+        system_prompt = open("api/prompts/strategy_en.txt", "r").read()
+        print(">>> SYSTEM PROMPT:", system_prompt)
     else:
-        system_prompt = strategy_prompt_he
+        system_prompt = open("api/prompts/strategy_he.txt", "r").read()
+        print(">>> SYSTEM PROMPT:", system_prompt)
 
     user_prompt = f"Generate a trading strategy in {language.upper()} for the following stock data:\n\n{formatted_data}"
 

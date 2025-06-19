@@ -9,6 +9,7 @@ from api.models.portfolio_snapshot import PortfolioSnapshot
 from api.schemas.market_data import EnrichedMarketData
 from api.services import market_data_service, portfolio_analyzer, ai_analyzer
 from api.worker import celery_app
+import time
 
 
 @celery_app.task(name="tasks.create_portfolio_snapshot")
@@ -130,9 +131,19 @@ def run_trading_strategy_task(enriched_data_dict: dict, language: str | None = N
     """
     Celery task to generate an AI trading strategy.
     """
+    retries = 0
     try:
         enriched_data = EnrichedMarketData(**enriched_data_dict)
-        strategy = asyncio.run(ai_analyzer.generate_trading_strategy(enriched_data, language=language))
-        return strategy.model_dump(mode="json")
+        while retries < 2:
+            try:
+                strategy = asyncio.run(ai_analyzer.generate_trading_strategy(enriched_data, language=language))
+                if strategy and strategy != {}:
+                    return strategy.model_dump(mode="json")
+                else:
+                    retries += 1
+                    time.sleep(1)
+            except Exception as e:
+                retries += 1
+                time.sleep(1)
     except Exception as e:
         return {"error": f"Failed during AI strategy generation: {e}"}

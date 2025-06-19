@@ -17,4 +17,14 @@ Explanation of JSON values:
 - confidence: Your confidence level in the strategy. Can be 'high', 'medium', or 'low'.
 - rationale: Your reasoning must be in English. Explain concisely and directly which technical indicators (e.g., RSI, MACD, moving averages) and news items led to your conclusion.
 
-Generate a trading strategy for the given stock.
+Example JSON Response:
+{
+  "strategy_type": "bullish",
+  "confidence": "medium",
+  "entry_price_suggestion": 150.25,
+  "stop_loss_suggestion": 145.00,
+  "take_profit_suggestion": 162.50,
+  "rationale": "Technical analysis reveals RSI at oversold levels of 28 indicating potential reversal opportunity, while MACD histogram shows bullish divergence with price crossing above the signal line, suggesting upward momentum building. The 50-day moving average is acting as dynamic support with price bouncing off this level twice in recent sessions. Volume analysis shows a 40% increase above the 20-day average, confirming institutional accumulation. Recent quarterly earnings exceeded consensus estimates by 12% with revenue growth of 8% year-over-year, while management raised full-year guidance citing strong demand and operational efficiency improvements. Additional positive catalysts include a new product launch announcement and industry tailwinds from regulatory changes favoring the sector. However, broader market volatility and sector rotation risks warrant careful position sizing and risk management."
+}
+
+DO NOT include any text outside the JSON object. Respond ONLY with valid JSON.
