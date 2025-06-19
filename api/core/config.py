@@ -39,6 +39,8 @@ class Settings(BaseSettings):
 
     DB_SSL_CERT_PATH: str = "/app/core/certs/supabase-ca.pem"
 
+    OPENROUTER_MODEL: str = "deepseek/deepseek-r1-0528:free"
+
     @property
     def REDIS_URL(self) -> str:
         if os.getenv("DOCKER_CONTAINER") or self.ENVIRONMENT.lower() == "production":

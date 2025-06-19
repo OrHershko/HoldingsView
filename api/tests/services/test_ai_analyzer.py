@@ -194,4 +194,4 @@ async def test_analyze_stock_deep_dive_success(
 
     # Check that the correct model was requested
     called_json = mock_post.call_args.kwargs["json"]
-    assert called_json["model"] == "deepseek/deepseek-r1-0528:free"
+    assert called_json["model"] == settings.OPENROUTER_MODEL

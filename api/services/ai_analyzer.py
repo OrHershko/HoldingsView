@@ -1,10 +1,14 @@
 from typing import List
-import json
 
 from api.schemas.holding import CalculatedHolding
 from api.schemas.market_data import EnrichedMarketData
 from api.schemas.ai import TradingStrategy
 from api.services.openrouter_client import chat_completion, OpenRouterError
+
+strategy_prompt_en = open("api/prompts/strategy_en.txt", "r").read()
+strategy_prompt_he = open("api/prompts/strategy_he.txt", "r").read()
+analysis_prompt_en = open("api/prompts/analysis_en.txt", "r").read()
+analysis_prompt_he = open("api/prompts/analysis_he.txt", "r").read()
 
 
 def format_holdings_for_prompt(holdings: List[CalculatedHolding]) -> str:
@@ -170,32 +174,12 @@ async def analyze_stock_deep_dive(
     """
     formatted_data = format_stock_data_for_prompt(data)
 
-    system_prompt = (
-        "You are an expert financial analyst providing a detailed, balanced, and objective "
-        "analysis of a single stock for an investor. You will be given a block of data "
-        "containing the company's description, fundamental metrics, technical indicators, "
-        "and recent news. Your task is to synthesize this information into a comprehensive "
-        "narrative report. Structure your response using the following markdown format:\n\n"
-        "### 📈 Executive Summary\n"
-        "A brief, high-level overview of the company and its current standing.\n\n"
-        "### ✅ Strengths\n"
-        "Bulleted list of positive aspects based on the provided data (e.g., strong fundamentals, "
-        "positive technical momentum, good news).\n\n"
-        "### ⚠️ Weaknesses\n"
-        "Bulleted list of negative aspects or risks (e.g., high valuation, poor technicals, "
-        "negative news sentiment).\n\n"
-        "### 🔍 Opportunities\n"
-        "Bulleted list of potential future upsides that may not be fully reflected in the "
-        "current data (e.g., industry growth, new products mentioned in summary).\n\n"
-        "### 📉 Threats\n"
-        "Bulleted list of external or internal risks that could negatively impact the stock "
-        "(e.g., competition, regulatory changes, macroeconomic factors).\n\n"
-        "Provide clear, concise points and justify each with evidence from the data. Do not "
-        "give direct financial advice, price targets, or 'buy/sell/hold' recommendations."
-        f"THE LANGUAGE OF THE RESPONSE SHOULD BE WRITTEN IN {language.upper()}."
-    )
+    if language == "English":
+        system_prompt = analysis_prompt_en
+    else:
+        system_prompt = analysis_prompt_he
 
-    user_prompt = f"Please provide a deep-dive analysis for the following stock based on this data:\n\n{formatted_data}"
+    user_prompt = f"Please provide a deep-dive analysis in {language.upper()} for the following stock based on this data:\n\n{formatted_data}"
 
     try:
         response = await chat_completion(
@@ -219,28 +203,13 @@ async def generate_trading_strategy(
     Generates an actionable trading strategy using an AI model.
     """
     formatted_data = format_stock_data_for_prompt(data)
+    
+    if language == "English":
+        system_prompt = strategy_prompt_en
+    else:
+        system_prompt = strategy_prompt_he
 
-    system_prompt = f"""
-You are a quantitative trading analyst. Your task is to devise a short-term (1-4 week)
-trading strategy based on the provided technical indicators and recent news.
-
-YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT THAT CONFORMS TO THIS PYDANTIC SCHEMA:
-{{
-  "strategy_type": "'bullish' | 'bearish' | 'neutral-range'",
-  "confidence": "'high' | 'medium' | 'low'",
-  "entry_price_suggestion": "float | null",
-  "stop_loss_suggestion": "float | null",
-  "take_profit_suggestion": "float | null",
-  "rationale": "string"
-}}
-Analyze the data and provide concrete, actionable numbers. For the rationale, explain exactly
-which technical indicators (e.g., RSI, MACD, SMAs) and news items led to your conclusion.
-Be concise and direct.
-THE LANGUAGE OF THE RATIONALE SHOULD BE WRITTEN IN {language.upper()}.
-"""
-    user_prompt = (
-        f"Generate a trading strategy for the following stock data:\n\n{formatted_data}"
-    )
+    user_prompt = f"Generate a trading strategy in {language.upper()} for the following stock data:\n\n{formatted_data}"
 
     try:
         response = await chat_completion(
@@ -249,12 +218,8 @@ THE LANGUAGE OF THE RATIONALE SHOULD BE WRITTEN IN {language.upper()}.
                 {"role": "user", "content": user_prompt},
             ],
             timeout=45.0,
-            extra_params={"response_format": {"type": "json_object"}},
         )
 
-        strategy_json_str = response["choices"][0]["message"]["content"]
-
-        strategy_data = json.loads(strategy_json_str)
-        return TradingStrategy(**strategy_data)
+        return response["choices"][0]["message"]["content"]
     except OpenRouterError as e:
         raise ConnectionError(str(e)) from e

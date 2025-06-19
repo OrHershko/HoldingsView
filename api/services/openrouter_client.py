@@ -14,7 +14,7 @@ class OpenRouterError(Exception):
 async def chat_completion(
     *,
     messages: List[Dict[str, str]],
-    model: str = "deepseek/deepseek-r1-0528:free",
+    model: str = settings.OPENROUTER_MODEL,
     timeout: float = 30.0,
     extra_params: Optional[Dict[str, Any]] = None,
     retries: int = 3,
