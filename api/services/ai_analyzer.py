@@ -218,6 +218,7 @@ async def generate_trading_strategy(
                 {"role": "user", "content": user_prompt},
             ],
             timeout=45.0,
+            extra_params={"response_format": {"type": "json_object"}},
         )
 
         return response["choices"][0]["message"]["content"]
