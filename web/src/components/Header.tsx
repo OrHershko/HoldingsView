@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({
         <img
           src={logo}
           alt="Logo"
-          className="w-30 h-14 flex-shrink-0 min-w-fit" 
+          className="w-30 h-14" 
         />
       </div>
 
