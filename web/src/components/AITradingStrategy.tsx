@@ -55,7 +55,7 @@ const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData, Langua
       const { data: task } = await apiClient.post<TaskStatus>(`/market-data/${stockData.symbol}/strategize`, { language: language });
       const result = await pollTask(task.task_id);
       setStrategy(result);
-    } catch (err: unknown) {
+    } catch (err) {
       const error = err as Error;
       setError(error.message || 'Failed to fetch AI strategy.');
       toast({

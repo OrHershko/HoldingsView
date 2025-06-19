@@ -50,7 +50,7 @@ const AIStockAnalysis: React.FC<AIStockAnalysisProps> = ({ stockData, LanguageOp
     }
   };
 
-  const formattedContent = analysis.split('\n').map((line, index) => {
+  const formattedContent = analysis ? analysis.split('\n').map((line, index) => {
     if (line.startsWith('###')) {
       return <h3 key={index} className="text-xl font-semibold mt-4 mb-2">{line.replace('###', '').trim()}</h3>;
     }
@@ -58,7 +58,7 @@ const AIStockAnalysis: React.FC<AIStockAnalysisProps> = ({ stockData, LanguageOp
       return <li key={index} className="ml-4 list-disc">{line.substring(1).trim()}</li>;
     }
     return <p key={index} className="mb-2">{line}</p>;
-  });
+  }) : <p>No analysis available, please try again.</p>;
 
 
   return (
