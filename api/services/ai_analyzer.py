@@ -1,3 +1,4 @@
+import json
 from typing import List
 
 from api.schemas.holding import CalculatedHolding
@@ -221,6 +222,8 @@ async def generate_trading_strategy(
             extra_params={"response_format": {"type": "json_object"}},
         )
 
-        return response["choices"][0]["message"]["content"]
+        strategy_json_str = response["choices"][0]["message"]["content"]
+        strategy_data = json.loads(strategy_json_str)
+        return TradingStrategy(**strategy_data)
     except OpenRouterError as e:
         raise ConnectionError(str(e)) from e
