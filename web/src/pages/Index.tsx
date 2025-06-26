@@ -10,7 +10,6 @@ import HoldingsList from '@/components/dashboard/HoldingsList';
 import StockDetailsView from '@/components/dashboard/StockDetailsView';
 import AddTransactionDialog from '@/components/AddTransactionDialog';
 import { toast } from '@/components/ui/sonner';
-import { cn } from '@/lib/utils';
 
 const FullPageLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -88,6 +87,14 @@ const Index: React.FC = () => {
   
   const handleOpenAddTransaction = () => setAddTransactionOpen(true);
 
+  const resetState = () => {
+    setSelectedSymbol(null);
+    setMobileView('holdings');
+    setAddTransactionOpen(false);
+    setSidebarOpen(false);
+    setActiveNavItem('home');
+  };
+
   if (authLoading || (!isGuest && portfolioLoading && !portfolioData)) {
     return <FullPageLoader />;
   }
@@ -101,7 +108,7 @@ const Index: React.FC = () => {
       <div className="lg:hidden">
         <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="w-64 p-0 bg-gray-800 border-gray-700">
-            <Sidebar activeItem={activeNavItem} setActiveItem={setActiveNavItem} />
+            <Sidebar activeItem={activeNavItem} setActiveItem={setActiveNavItem} resetState={resetState} />
           </SheetContent>
         </Sheet>
       </div>
@@ -113,10 +120,10 @@ const Index: React.FC = () => {
         />
         
         <main className="flex-1 overflow-hidden">
-          <div className="hidden md:block h-full p-4 lg:p-6 ">
+          <div className="hidden md:block h-full p-4 lg:p-6">
             <ResizablePanelGroup direction="horizontal" className="h-full w-full">
               <ResizablePanel defaultSize={35} minSize={0}>
-                <div className="flex flex-col h-full pr-4 space-y-4 overflow-y-auto">
+                <div className="flex flex-col h-full pr-4 space-y-4 overflow-y-scroll overflow-x-hidden">
                   <PortfolioHeader 
                     portfolio={portfolioData}
                     onAddStock={handleOpenAddTransaction}
@@ -143,9 +150,9 @@ const Index: React.FC = () => {
             </ResizablePanelGroup>
           </div>
 
-          <div className="md:hidden h-full flex flex-col">
+          <div className="md:hidden h-full flex flex-col overflow-y-scroll">
             {mobileView === 'holdings' ? (
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1">
                 <div className="h-full flex flex-col space-y-4 p-2">
                   <PortfolioHeader 
                     portfolio={portfolioData}
