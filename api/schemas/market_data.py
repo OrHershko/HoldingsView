@@ -97,3 +97,14 @@ class EnrichedMarketData(BaseModel):
 
     class Config:
         from_attributes = True
+
+class SymbolSearchResult(BaseModel):
+    symbol: str
+    shortname: Optional[str] = None
+    longname: Optional[str] = None
+    exchDisp: Optional[str] = None  # Exchange display name
+    typeDisp: Optional[str] = None  # Asset type display name
+    quoteType: Optional[str] = Field(None, alias="quoteType")
+
+class SymbolSearchResponse(BaseModel):
+    results: list[SymbolSearchResult]

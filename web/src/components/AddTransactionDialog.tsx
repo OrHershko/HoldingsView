@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,6 +14,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { TransactionCreate, EnrichedHolding } from '@/types/api';
+import { useStockSearch } from '@/hooks/useMarketData';
+import type { SymbolSearchResult } from '@/types/api';
 
 const getTransactionSchema = (holdings: EnrichedHolding[]) => z.object({
   symbol: z.string().min(1, "Symbol is required.").max(10).trim().toUpperCase(),
@@ -43,6 +45,63 @@ interface AddTransactionDialogProps {
   portfolioId?: number;
   holdings: EnrichedHolding[];
 }
+
+const SymbolAutocomplete: React.FC<{ value: string; onChange: (v: string) => void; disabled?: boolean }> = ({ value, onChange, disabled }) => {
+  const [query, setQuery] = useState(value);
+  const { results, loading } = useStockSearch(query);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  React.useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  return (
+    <div className="relative w-full">
+      <Input
+        ref={inputRef}
+        type="search"
+        value={query}
+        onChange={e => {
+          setQuery(e.target.value);
+          onChange(e.target.value);
+          setShowSuggestions(true);
+        }}
+        onFocus={() => setShowSuggestions(true)}
+        placeholder="e.g., AAPL"
+        className="pl-9 rounded-full"
+        autoComplete="off"
+        disabled={disabled}
+      />
+      {query && !disabled && showSuggestions && (
+        <div className="absolute z-10 mt-1 w-full bg-white rounded shadow-lg max-h-60 overflow-y-auto">
+          {loading ? (
+            <div className="p-3 text-center text-gray-500">Searching...</div>
+          ) : results.length === 0 ? (
+            <div className="p-3 text-center text-gray-500">No results</div>
+          ) : (
+            (results as SymbolSearchResult[]).map((item) => (
+              <div
+                key={item.symbol}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  onChange(item.symbol);
+                  setQuery(item.symbol);
+                  setShowSuggestions(false);
+                  inputRef.current?.blur();
+                }}
+              >
+                <span className="font-semibold text-black">{item.symbol}</span>
+                {item.shortname && <span className="ml-2 text-gray-600">{item.shortname}</span>}
+                {item.exchDisp && <span className="ml-2 text-xs text-gray-400">({item.exchDisp})</span>}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onClose, portfolioId, holdings }) => {
   const addTransactionMutation = useAddTransactionWithPortfolioCreation();
@@ -112,7 +171,7 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
                 <FormItem>
                   <FormLabel>Stock Symbol</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., AAPL" {...field} />
+                    <SymbolAutocomplete value={field.value} onChange={field.onChange} disabled={form.formState.isSubmitting} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -126,7 +185,7 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
                   <FormLabel>Type</FormLabel>
                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-background text-white">
                         <SelectValue placeholder="Select transaction type" />
                       </SelectTrigger>
                     </FormControl>

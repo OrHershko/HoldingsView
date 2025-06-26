@@ -31,17 +31,17 @@ def format_stock_data_for_prompt(data: EnrichedMarketData) -> str:
     trading_status_parts = [f"Market is {ti.market_state}."]
     if ti.market_state == "REGULAR":
         if ti.regular_market_change_percent is not None:
-            change_str = f"{ti.regular_market_change_percent * 100:+.2f}%"
+            change_str = f"{ti.regular_market_change_percent:+.2f}%"
             trading_status_parts.append(f"Today's Change: {change_str}")
     elif ti.market_state == "PRE":
         if ti.pre_market_price is not None and ti.pre_market_change_percent is not None:
-            change_str = f"{ti.pre_market_change_percent * 100:+.2f}%"
+            change_str = f"{ti.pre_market_change_percent:+.2f}%"
             trading_status_parts.append(
                 f"Pre-Market: ${ti.pre_market_price:.2f} ({change_str})"
             )
     elif ti.market_state == "POST":
         if ti.post_market_price is not None and ti.post_market_change_percent is not None:
-            change_str = f"{ti.post_market_change_percent * 100:+.2f}%"
+            change_str = f"{ti.post_market_change_percent:+.2f}%"
             trading_status_parts.append(
                 f"Post-Market: ${ti.post_market_price:.2f} ({change_str})"
             )
@@ -68,6 +68,20 @@ def format_stock_data_for_prompt(data: EnrichedMarketData) -> str:
         financials_list.append(f"- Profit Margin: {f.profit_margins*100:.2f}%")
     if f.return_on_equity:
         financials_list.append(f"- Return on Equity: {f.return_on_equity*100:.2f}%")
+    if f.eps:
+        financials_list.append(f"- EPS (TTM): {f.eps:.2f}")
+    if f.dividend_yield:
+        financials_list.append(f"- Dividend Yield: {f.dividend_yield*100:.2f}%")
+    if f.payout_ratio:
+        financials_list.append(f"- Payout Ratio: {f.payout_ratio*100:.2f}%")
+    if f.beta:
+        financials_list.append(f"- Beta: {f.beta:.2f}")
+    if f.total_cash:
+        financials_list.append(f"- Total Cash: ${f.total_cash:,}")
+    if f.total_debt:
+        financials_list.append(f"- Total Debt: ${f.total_debt:,}")
+    if f.free_cashflow:
+        financials_list.append(f"- Free Cashflow: ${f.free_cashflow:,}")
 
     analyst_list: list[str] = []
     if f.analyst_recommendation:
@@ -199,6 +213,8 @@ async def generate_trading_strategy(
     Generates an actionable trading strategy using an AI model.
     """
     formatted_data = format_stock_data_for_prompt(data)
+
+    print(formatted_data)
 
     if language.lower() == "english":
         system_prompt = open("api/prompts/strategy_en.txt", "r").read()

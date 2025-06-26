@@ -2,7 +2,7 @@ import axios from 'axios';
 import { auth } from '@/config/firebase';
 
 const apiClient = axios.create({
-  baseURL: '/api/v1'
+    baseURL: '/api/v1'
 });
 
 // Interceptor to add the Firebase auth token to every request
@@ -36,3 +36,8 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+export const searchStocks = async (query: string) => {
+  const { data } = await apiClient.get(`/market-data/search`, { params: { query } });
+  return data;
+};

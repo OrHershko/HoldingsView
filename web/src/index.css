@@ -79,6 +79,14 @@
   }
 }
 
+@layer base {
+  html, body, #root {
+    height: 100%;
+    overflow: auto;
+  }
+}
+
+
 @layer components {
   .ios-card {
     @apply bg-[#1E1E1E] rounded-xl shadow-lg p-4 mb-4 border border-gray-800;

@@ -9,11 +9,12 @@ import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import ForgotPassword from "./components/auth/ForgotPassword";
 import Index from "./pages/Index";
+import PublicRoute from "./components/auth/PublicRoute";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AppRoutes = () => {
-  const { currentUser, loading } = useAuth();
+  const { loading } = useAuth();
   
   if (loading) {
     return (
@@ -25,9 +26,9 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       
       <Route 
         path="/" 
@@ -37,8 +38,8 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
-      
-      <Route path="*" element={<NotFound />} />
+
+      <Route path="*" element={<NotFound />} /> 
     </Routes>
   );
 };

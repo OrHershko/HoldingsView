@@ -12,7 +12,7 @@ const HoldingsList: React.FC<HoldingsListProps> = ({
   onSelectStock,
 }) => {
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col min-w-[300px]">
       <div className="mb-3">
         <h2 className="text-lg font-semibold text-white mb-1">Your Holdings</h2>
         <p className="text-sm text-gray-400">

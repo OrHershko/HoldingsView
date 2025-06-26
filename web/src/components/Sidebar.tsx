@@ -2,23 +2,28 @@ import React from 'react';
 import * as LucideIcons from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/assets/Logo.png';
-import { useNavigate } from 'react-router-dom';
 import { NavItem } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
   activeItem: string;
   setActiveItem: (id: string) => void;
+  resetState: () => void;
 }
 
 const navItems: NavItem[] = [
   { id: 'home', name: 'Home', icon: 'home', path: '/' },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ activeItem, setActiveItem }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeItem, setActiveItem, resetState }) => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   const handleNavigate = (id: string, path: string) => {
+    if (window.location.pathname === path) {
+      resetState();
+      return;
+    }
     setActiveItem(id);
     navigate(path);
   };
