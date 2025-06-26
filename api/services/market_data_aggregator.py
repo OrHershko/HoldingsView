@@ -9,6 +9,8 @@ from api.schemas.market_data import (
     NewsArticle,
     OHLCV,
     TradingInfo,
+    SymbolSearchResult,
+    SymbolSearchResponse,
 )
 from api.services.technical_indicator_service import calculate_indicators
 
@@ -292,3 +294,21 @@ def _trim_dataframe_to_period(df: pd.DataFrame, period_str: str | None) -> pd.Da
         return df[df.index >= cutoff]
 
     return df
+
+async def search_symbols(query: str) -> SymbolSearchResponse:
+    """
+    Search for stock symbols using yfinance's Search class.
+    Returns a SymbolSearchResponse with a list of SymbolSearchResult.
+    Only returns stocks (EQUITY) and ETFs (ETF).
+    """
+    def do_search():
+        s = yf.Search(query)
+        return getattr(s, 'quotes', [])
+
+    quotes = await run_in_threadpool(do_search)
+    results = [
+        SymbolSearchResult(**q)
+        for q in quotes
+        if 'symbol' in q and q.get('quoteType') in {'EQUITY', 'ETF'}
+    ]
+    return SymbolSearchResponse(results=results)

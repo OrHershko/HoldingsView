@@ -71,7 +71,12 @@ const Index: React.FC = () => {
   useEffect(() => {
     if (holdings && holdings.length > 0 && !selectedSymbol) {
       setSelectedSymbol(holdings[0].symbol);
-    } else if (holdings && holdings.length === 0) {
+    } else if (
+      holdings &&
+      holdings.length === 0 &&
+      selectedSymbol &&
+      holdings.find(h => h.symbol === selectedSymbol)
+    ) {
       setSelectedSymbol(null);
     }
   }, [holdings, selectedSymbol]);
@@ -117,6 +122,7 @@ const Index: React.FC = () => {
         <Header 
           toggleSidebar={toggleSidebar} 
           isGuest={isGuest} 
+          onSelectStock={handleSelectStock}
         />
         
         <main className="flex-1 overflow-hidden">

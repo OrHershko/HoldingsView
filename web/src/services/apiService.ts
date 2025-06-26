@@ -36,3 +36,8 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+export const searchStocks = async (query: string) => {
+  const { data } = await apiClient.get(`/market-data/search`, { params: { query } });
+  return data;
+};

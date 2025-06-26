@@ -131,3 +131,13 @@ export interface OHLCV {
   sma_200?: number | null;
   rsi_14?: number | null;
 }
+
+// Matches api/schemas/market_data.py -> SymbolSearchResult
+export interface SymbolSearchResult {
+  symbol: string;
+  shortname?: string;
+  longname?: string;
+  exchDisp?: string;
+  typeDisp?: string;
+  quoteType?: string;
+}

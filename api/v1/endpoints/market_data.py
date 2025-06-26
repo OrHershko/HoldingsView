@@ -9,6 +9,7 @@ from api.tasks import (
 )
 from api.schemas.task import TaskStatus
 from api.services import market_data_aggregator
+from api.schemas.market_data import SymbolSearchResponse
 
 router = APIRouter()
 
@@ -100,3 +101,13 @@ async def get_trading_strategy(symbol: str, request: AiRequestBody):
 
     task = run_trading_strategy_task.delay(enriched_data.model_dump(mode="json"), language=request.language)
     return TaskStatus(task_id=task.id, status="PENDING")
+
+
+@router.get(
+    "/search",
+    response_model=SymbolSearchResponse,
+    summary="Search for stock symbols",
+    dependencies=[Depends(get_current_user)],
+)
+async def search_stocks(query: str = Query(..., min_length=1, description="Search query for stock symbols or names")):
+    return await market_data_aggregator.search_symbols(query)

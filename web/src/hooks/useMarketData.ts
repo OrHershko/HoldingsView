@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/services/apiService';
 import { EnrichedMarketData, TaskStatus } from '@/types/api';
+import { useState, useEffect } from 'react';
+import { searchStocks } from '@/services/apiService';
 
 const pollTask = async (
   taskId: string,
@@ -65,4 +67,39 @@ export const useEnrichedMarketData = (
     staleTime: 5 * 60 * 1000, // Data is fresh for 5 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus to avoid re-triggering tasks
   });
+};
+
+export const useStockSearch = (query: string) => {
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setResults([]);
+      setError(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    searchStocks(debouncedQuery)
+      .then((data) => {
+        setResults(data.results || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Error searching stocks');
+        setLoading(false);
+      });
+  }, [debouncedQuery]);
+
+  return { results, loading, error };
 };
