@@ -59,7 +59,7 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
             <div className="min-w-0 flex-1">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Total Value</p>
               <p className="text-lg md:text-xl font-bold text-white truncate">
-                ${totalValue.toFixed(2)}
+                ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
@@ -77,7 +77,7 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
               <p className="text-xs text-gray-400 uppercase tracking-wide">Total P&L</p>
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`pt-1 text-lg md:text-xl font-bold ${isTotalPositive ? 'text-green-400' : 'text-red-400'}`}>
-                  {isTotalPositive ? '+' : ''}${totalGainLoss?.toFixed(2)}
+                  {isTotalPositive ? '+' : ''}${totalGainLoss?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <Badge 
                   variant="secondary" 
@@ -87,7 +87,7 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
                       : 'bg-red-600/20 text-red-400 border-red-600/30'
                   }`}
                 >
-                  {isTotalPositive ? '+' : ''}{totalGainLossPercent?.toFixed(2)}%
+                  {isTotalPositive ? '+' : ''}{totalGainLossPercent?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                 </Badge>
               </div>
             </div>
@@ -105,7 +105,7 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
               <p className="text-xs text-gray-400 uppercase tracking-wide">Today's P&L</p>
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`pt-1 text-lg md:text-xl font-bold ${isTodayPositive ? 'text-green-400' : 'text-red-400'}`}>
-                  {isTodayPositive ? '+' : '-'}${Math.abs(totalGainLossToday)?.toFixed(2)}
+                  {isTodayPositive ? '+' : '-'}${Math.abs(totalGainLossToday)?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <Badge 
                   variant="secondary" 
@@ -115,7 +115,7 @@ const PortfolioHeader: React.FC<PortfolioHeaderProps> = ({ portfolio, onAddStock
                       : 'bg-red-600/20 text-red-400 border-red-600/30'
                   }`}
                 >
-                  {isTodayPositive ? '+' : ''}{totalGainLossTodayPercent?.toFixed(2)}%
+                  {isTodayPositive ? '+' : ''}{totalGainLossTodayPercent?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                 </Badge>
               </div>
             </div>

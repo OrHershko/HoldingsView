@@ -152,7 +152,7 @@ const AdvancedStockData: React.FC<AdvancedStockDataProps> = ({ stockData }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
             <DataRow label="Company Name" value={stockData.long_name || stockData.short_name || 'N/A'} />
             <DataRow label="Sector" value={stockData.fundamentals.sector || 'N/A'} />
             <DataRow label="Industry" value={stockData.fundamentals.industry || 'N/A'} />

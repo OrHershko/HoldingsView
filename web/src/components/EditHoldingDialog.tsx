@@ -90,11 +90,11 @@ const EditHoldingDialog: React.FC<EditHoldingDialogProps> = ({
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">${holding.total_cost_basis.toFixed(2)}</div>
+                  <div className="text-2xl font-bold">${holding.total_cost_basis.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                   <div className="text-sm text-gray-600">Cost Basis</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">${holding.average_cost_basis.toFixed(2)}</div>
+                  <div className="text-2xl font-bold">${holding.average_cost_basis.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                   <div className="text-sm text-gray-600">Avg Cost</div>
                 </div>
               </div>
@@ -160,7 +160,7 @@ const EditHoldingDialog: React.FC<EditHoldingDialogProps> = ({
                             </div>
                             
                             <div className="text-gray-600">
-                              Total: ${(transaction.quantity * transaction.price).toFixed(2)}
+                              Total: ${(transaction.quantity * transaction.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                           </div>
                         </div>

@@ -127,13 +127,13 @@ const StockCard: React.FC<StockCardProps> = ({
                   "font-semibold text-base",
                   isPositiveDailyChange ? 'text-green-400' : 'text-red-400'
                 )}>
-                {isPositiveDailyChange ? '+' : '-'}${Math.abs(todaysChange).toFixed(2)}
+                {isPositiveDailyChange ? '+' : '-'}${Math.abs(todaysChange).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               <p className={cn(
                   "text-sm mt-0.5",
                   isPositiveDailyChange ? 'text-green-400' : 'text-red-400'
                 )}>
-                ({isPositiveDailyChange ? '+' : ''}{todaysChangePercent.toFixed(2)}%)
+                ({isPositiveDailyChange ? '+' : ''}{todaysChangePercent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
               </p>
             </div>
           </div>
@@ -162,7 +162,7 @@ const StockCard: React.FC<StockCardProps> = ({
                   <span className="text-gray-300">Pre-Market:</span>
                   <div className="text-right">
                     <span className="text-white font-mono">
-                      ${extendedMarketData.trading_info.pre_market_price.toFixed(2)}
+                      ${extendedMarketData.trading_info.pre_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     {extendedMarketData.trading_info.pre_market_change_percent && (
                       <span className={cn(
@@ -170,7 +170,7 @@ const StockCard: React.FC<StockCardProps> = ({
                         extendedMarketData.trading_info.pre_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'
                       )}>
                         ({extendedMarketData.trading_info.pre_market_change_percent >= 0 ? '+' : ''}
-                        {extendedMarketData.trading_info.pre_market_change_percent.toFixed(2)}%)
+                        {extendedMarketData.trading_info.pre_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
                       </span>
                     )}
                   </div>
@@ -183,7 +183,7 @@ const StockCard: React.FC<StockCardProps> = ({
                   <span className="text-gray-300">After Hours:</span>
                   <div className="text-right">
                     <span className="text-white font-mono">
-                      ${extendedMarketData.trading_info.post_market_price.toFixed(2)}
+                      ${extendedMarketData.trading_info.post_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     {extendedMarketData.trading_info.post_market_change_percent && (
                       <span className={cn(
@@ -191,7 +191,7 @@ const StockCard: React.FC<StockCardProps> = ({
                         extendedMarketData.trading_info.post_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'
                       )}>
                         ({extendedMarketData.trading_info.post_market_change_percent >= 0 ? '+' : ''}
-                        {extendedMarketData.trading_info.post_market_change_percent.toFixed(2)}%)
+                        {extendedMarketData.trading_info.post_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
                       </span>
                     )}
                   </div>

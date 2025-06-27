@@ -63,7 +63,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ transactions, p
                   )}
                 </TableCell>
                 <TableCell className="text-right">{tx.quantity.toLocaleString()}</TableCell>
-                <TableCell className="text-right">${tx.price.toFixed(2)}</TableCell>
+                <TableCell className="text-right">${tx.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                 <TableCell className="text-right">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>

@@ -268,11 +268,11 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
         <div className="flex justify-between items-center">
           <CardTitle className="text-2xl">{stockData.short_name || stockData.symbol}</CardTitle>
           <div className="text-right">
-            <p className="text-2xl font-bold">${stockData.current_price?.toFixed(2)}</p>
+            <p className="text-2xl font-bold">${stockData.current_price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <div className="flex flex-col items-end gap-1">
               <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                 {isPositive ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
-                {stockData.trading_info?.regular_market_change_percent?.toFixed(2)}%
+                {stockData.trading_info?.regular_market_change_percent?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
               </p>
               
               {/* Pre/After Market Hours Display */}
@@ -282,10 +282,10 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
                   {stockData.trading_info.pre_market_price && (
                     <div className="flex items-center gap-1">
                       <span className="text-gray-400">Pre:</span>
-                      <span className="text-white">${stockData.trading_info.pre_market_price.toFixed(2)}</span>
+                      <span className="text-white">${stockData.trading_info.pre_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       {stockData.trading_info.pre_market_change_percent && (
                         <span className={`${stockData.trading_info.pre_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ({stockData.trading_info.pre_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.pre_market_change_percent.toFixed(2)}%)
+                          ({stockData.trading_info.pre_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.pre_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
                         </span>
                       )}
                     </div>
@@ -295,10 +295,10 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
                   {stockData.trading_info.post_market_price && (
                     <div className="flex items-center gap-1">
                       <span className="text-gray-400">After:</span>
-                      <span className="text-white">${stockData.trading_info.post_market_price.toFixed(2)}</span>
+                      <span className="text-white">${stockData.trading_info.post_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       {stockData.trading_info.post_market_change_percent && (
                         <span className={`${stockData.trading_info.post_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ({stockData.trading_info.post_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.post_market_change_percent.toFixed(2)}%)
+                          ({stockData.trading_info.post_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.post_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
                         </span>
                       )}
                     </div>

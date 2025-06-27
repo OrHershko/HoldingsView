@@ -54,6 +54,8 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
       quantity: data.quantity,
       price: data.price,
       transaction_date: format(data.transaction_date, 'yyyy-MM-dd'),
+      portfolio_id: portfolioId,
+      is_option: false,
     };
 
     addTransactionMutation.mutate({ portfolioId, transaction: formattedData }, {

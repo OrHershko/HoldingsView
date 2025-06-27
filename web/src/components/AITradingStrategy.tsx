@@ -116,15 +116,15 @@ const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData, Langua
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                 <div className="bg-gray-700/50 p-3 rounded-lg">
                     <p className="text-sm text-gray-400">Entry</p>
-                    <p className="text-lg font-mono">{strategy.entry_price_suggestion ? `$${strategy.entry_price_suggestion.toFixed(2)}` : 'N/A'}</p>
+                    <p className="text-lg font-mono">{strategy.entry_price_suggestion ? `$${strategy.entry_price_suggestion.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}</p>
                 </div>
                 <div className="bg-gray-700/50 p-3 rounded-lg">
                     <p className="text-sm text-gray-400">Take Profit</p>
-                    <p className="text-lg font-mono">{strategy.take_profit_suggestion ? `$${strategy.take_profit_suggestion.toFixed(2)}` : 'N/A'}</p>
+                    <p className="text-lg font-mono">{strategy.take_profit_suggestion ? `$${strategy.take_profit_suggestion.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}</p>
                 </div>
                 <div className="bg-gray-700/50 p-3 rounded-lg">
                     <p className="text-sm text-gray-400">Stop Loss</p>
-                    <p className="text-lg font-mono">{strategy.stop_loss_suggestion ? `$${strategy.stop_loss_suggestion.toFixed(2)}` : 'N/A'}</p>
+                    <p className="text-lg font-mono">{strategy.stop_loss_suggestion ? `$${strategy.stop_loss_suggestion.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}</p>
                 </div>
             </div>
 
