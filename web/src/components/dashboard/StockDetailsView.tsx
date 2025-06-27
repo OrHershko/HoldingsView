@@ -62,7 +62,7 @@ const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transaction
     
     return (
       <Select value={language} onValueChange={setLanguage}>
-          <SelectTrigger className="w-24 h-10 ml-auto mr-2">
+          <SelectTrigger id="language-select" name="language" className="w-24 h-10 ml-auto mr-2">
             <SelectValue placeholder="Select Language" />
           </SelectTrigger>
           <SelectContent>

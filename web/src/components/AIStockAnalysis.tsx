@@ -66,7 +66,14 @@ const AIStockAnalysis: React.FC<AIStockAnalysisProps> = ({ stockData, LanguageOp
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold flex items-center"><BrainCircuitIcon className="mr-2 h-6 w-6 min-w-[4px]" />AI Analysis</h2>
          <LanguageOptions language={language} setLanguage={setLanguage} />
-        <Button onClick={fetchAnalysis} disabled={isLoading} size="sm" className="min-w-[125px]">
+        <Button 
+          id="generate-analysis-button"
+          onClick={fetchAnalysis} 
+          disabled={isLoading} 
+          size="sm" 
+          className="min-w-[125px]"
+          aria-label="Generate AI stock analysis"
+        >
           {isLoading ? <RefreshCwIcon className="h-4 w-4 animate-spin" /> : 'Generate Analysis'}
         </Button>
       </div>

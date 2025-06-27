@@ -1,9 +1,11 @@
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch
+import json
+from unittest.mock import patch, MagicMock
 
 from api.services import market_data_service
+from api.services.market_data_service import MarketDataService
 
 
 @pytest.mark.asyncio
@@ -88,3 +90,111 @@ async def test_get_current_prices_insufficient_data(mocker):
 
     prices = await market_data_service.get_current_prices(["MSFT"])
     assert prices == {}
+
+
+def test_get_option_chain_with_nan_values(mocker):
+    """Tests that option chain data with NaN values is properly cleaned for JSON serialization."""
+    # Create mock option chain data with NaN values
+    mock_calls_data = {
+        'contractSymbol': ['AAPL250103C00150000', 'AAPL250103C00155000'],
+        'strike': [150.0, 155.0],
+        'lastPrice': [10.5, np.nan],  # One valid, one NaN
+        'bid': [9.8, 4.2],
+        'ask': [10.2, np.nan],  # One valid, one NaN
+        'change': [1.5, np.nan],
+        'percentChange': [15.0, np.nan],
+        'volume': [100, np.nan],  # Should become None
+        'openInterest': [50, 25],
+        'impliedVolatility': [0.25, np.nan],
+        'inTheMoney': [True, False]
+    }
+    
+    mock_puts_data = {
+        'contractSymbol': ['AAPL250103P00145000'],
+        'strike': [145.0],
+        'lastPrice': [np.nan],  # NaN value
+        'bid': [5.8],
+        'ask': [6.2],
+        'change': [np.nan],
+        'percentChange': [np.nan],
+        'volume': [75],
+        'openInterest': [np.nan],  # Should become None
+        'impliedVolatility': [np.nan],
+        'inTheMoney': [False]
+    }
+    
+    mock_calls_df = pd.DataFrame(mock_calls_data)
+    mock_puts_df = pd.DataFrame(mock_puts_data)
+    
+    # Create mock option chain object
+    mock_chain = MagicMock()
+    mock_chain.calls = mock_calls_df
+    mock_chain.puts = mock_puts_df
+    
+    # Mock the ticker and its option_chain method
+    mock_ticker = MagicMock()
+    mock_ticker.option_chain.return_value = mock_chain
+    
+    # Patch the get_ticker method
+    service = MarketDataService()
+    mocker.patch.object(service, 'get_ticker', return_value=mock_ticker)
+    
+    # Call the method
+    result = service.get_option_chain('AAPL', '2025-01-03')
+    
+    # Verify we got a result
+    assert result is not None
+    assert 'calls' in result
+    assert 'puts' in result
+    
+    # Test JSON serialization (this would fail before the fix)
+    json_str = json.dumps(result)
+    assert json_str is not None
+    
+    # Verify specific data cleaning
+    calls = result['calls']
+    puts = result['puts']
+    
+    # Check that NaN values were properly handled
+    assert len(calls) == 2
+    assert calls[0]['lastPrice'] == 10.5  # Valid value preserved
+    assert calls[1]['lastPrice'] == 0.0   # NaN converted to 0.0
+    assert calls[1]['ask'] == 0.0         # NaN converted to 0.0
+    assert calls[1]['volume'] is None     # NaN volume becomes None
+    
+    assert len(puts) == 1
+    assert puts[0]['lastPrice'] == 0.0    # NaN converted to 0.0
+    assert puts[0]['openInterest'] is None # NaN openInterest becomes None
+    assert puts[0]['impliedVolatility'] == 0.0  # NaN converted to 0.0
+
+
+def test_get_option_chain_empty_data(mocker):
+    """Tests that option chain handles empty DataFrames correctly."""
+    # Create empty DataFrames
+    mock_calls_df = pd.DataFrame()
+    mock_puts_df = pd.DataFrame()
+    
+    # Create mock option chain object
+    mock_chain = MagicMock()
+    mock_chain.calls = mock_calls_df
+    mock_chain.puts = mock_puts_df
+    
+    # Mock the ticker and its option_chain method
+    mock_ticker = MagicMock()
+    mock_ticker.option_chain.return_value = mock_chain
+    
+    # Patch the get_ticker method
+    service = MarketDataService()
+    mocker.patch.object(service, 'get_ticker', return_value=mock_ticker)
+    
+    # Call the method
+    result = service.get_option_chain('AAPL', '2025-01-03')
+    
+    # Verify we got a result with empty lists
+    assert result is not None
+    assert result['calls'] == []
+    assert result['puts'] == []
+    
+    # Test JSON serialization
+    json_str = json.dumps(result)
+    assert json_str is not None

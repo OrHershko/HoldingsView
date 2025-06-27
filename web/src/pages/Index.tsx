@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext';
 import { usePortfolio } from '@/hooks/useAppQueries';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import PortfolioHeader from '@/components/dashboard/PortfolioHeader';
@@ -10,6 +10,7 @@ import HoldingsList from '@/components/dashboard/HoldingsList';
 import StockDetailsView from '@/components/dashboard/StockDetailsView';
 import AddTransactionDialog from '@/components/AddTransactionDialog';
 import { toast } from '@/components/ui/sonner';
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 
 const FullPageLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -68,19 +69,6 @@ const Index: React.FC = () => {
     return portfolioData.transactions.filter(t => t.symbol === selectedSymbol);
   }, [portfolioData?.transactions, selectedSymbol]);
 
-  useEffect(() => {
-    if (holdings && holdings.length > 0 && !selectedSymbol) {
-      setSelectedSymbol(holdings[0].symbol);
-    } else if (
-      holdings &&
-      holdings.length === 0 &&
-      selectedSymbol &&
-      holdings.find(h => h.symbol === selectedSymbol)
-    ) {
-      setSelectedSymbol(null);
-    }
-  }, [holdings, selectedSymbol]);
-  
   const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
   
   const handleSelectStock = useCallback((symbol: string) => {
@@ -89,6 +77,19 @@ const Index: React.FC = () => {
       setMobileView('details');
     }
   }, []);
+
+  // Handle window resize to reset mobile view if screen becomes desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768 && mobileView === 'details') {
+        // Don't reset selectedSymbol on desktop, just reset mobile view
+        setMobileView('holdings');
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [mobileView]);
   
   const handleOpenAddTransaction = () => setAddTransactionOpen(true);
 
@@ -113,6 +114,10 @@ const Index: React.FC = () => {
       <div className="lg:hidden">
         <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="w-64 p-0 bg-gray-800 border-gray-700">
+            <VisuallyHidden.Root>
+              <SheetTitle>Navigation Menu</SheetTitle>
+              <SheetDescription>Main navigation and portfolio options</SheetDescription>
+            </VisuallyHidden.Root>
             <Sidebar activeItem={activeNavItem} setActiveItem={setActiveNavItem} resetState={resetState} />
           </SheetContent>
         </Sheet>
@@ -123,6 +128,12 @@ const Index: React.FC = () => {
           toggleSidebar={toggleSidebar} 
           isGuest={isGuest} 
           onSelectStock={handleSelectStock}
+          mobileView={mobileView}
+          selectedSymbol={selectedSymbol}
+          onBackToHoldings={() => {
+            setMobileView('holdings');
+            setSelectedSymbol(null);
+          }}
         />
         
         <main className="flex-1 overflow-hidden">

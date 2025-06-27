@@ -22,6 +22,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSelect, inputRef }) => {
     <div className="relative w-64">
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ios-gray h-4 w-4 pointer-events-none" />
       <Input
+        id="stock-search"
+        name="stock-search"
         type="search"
         value={query}
         onChange={e => setQuery(e.target.value)}
@@ -37,17 +39,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSelect, inputRef }) => {
           ) : results.length === 0 ? (
             <div className="p-3 text-center text-gray-500">No results</div>
           ) : (
-            (results as SymbolSearchResult[]).map((item) => (
-              <div
-                key={item.symbol}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                onClick={() => handleSelect(item.symbol)}
-              >
-                <span className="font-semibold">{item.symbol}</span>
-                {item.shortname && <span className="ml-2 text-gray-600">{item.shortname}</span>}
-                {item.exchDisp && <span className="ml-2 text-xs text-gray-400">({item.exchDisp})</span>}
-              </div>
-            ))
+            (results as SymbolSearchResult[])
+              .filter((item, index, array) => 
+                array.findIndex(other => other.symbol === item.symbol) === index
+              )
+              .map((item, index) => (
+                <div
+                  key={`${item.symbol}-${index}`}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => handleSelect(item.symbol)}
+                >
+                  <span className="font-semibold">{item.symbol}</span>
+                  {item.shortname && <span className="ml-2 text-gray-600">{item.shortname}</span>}
+                  {item.exchDisp && <span className="ml-2 text-xs text-gray-400">({item.exchDisp})</span>}
+                </div>
+              ))
           )}
         </div>
       )}

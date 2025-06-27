@@ -1,7 +1,9 @@
 from fastapi import APIRouter, status, Depends, HTTPException, Query
 from pydantic import BaseModel
+import logging
 
 from api.auth.firebase import get_current_user
+from api.services.market_data_service import MarketDataService, get_market_data_service
 from api.tasks import (
     get_enriched_market_data_task,
     run_deep_dive_analysis_task,
@@ -9,7 +11,7 @@ from api.tasks import (
 )
 from api.schemas.task import TaskStatus
 from api.services import market_data_aggregator
-from api.schemas.market_data import SymbolSearchResponse
+from api.schemas.market_data import SymbolSearchResponse, OptionChain
 
 router = APIRouter()
 
@@ -111,3 +113,102 @@ async def get_trading_strategy(symbol: str, request: AiRequestBody):
 )
 async def search_stocks(query: str = Query(..., min_length=1, description="Search query for stock symbols or names")):
     return await market_data_aggregator.search_symbols(query)
+
+
+@router.get(
+    "/prices",
+    response_model=dict,
+    summary="Get Current Prices",
+    description="Get current market prices for one or more stock symbols.",
+    dependencies=[Depends(get_current_user)],
+)
+async def get_current_prices(
+    symbols: str = Query(..., description="Comma-separated list of symbols, e.g., 'AAPL,GOOGL,TSLA'")
+):
+    """
+    Get current market prices for the provided symbols.
+    Returns a dictionary with symbol as key and price data as value.
+    """
+    try:
+        symbol_list = [s.strip().upper() for s in symbols.split(',') if s.strip()]
+        if not symbol_list:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one symbol is required."
+            )
+        
+        # Import here to avoid circular imports
+        from api.services import market_data_service
+        prices = await market_data_service.get_current_prices(symbol_list)
+        
+        if not prices:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No price data found for the provided symbols."
+            )
+        
+        return prices
+    except Exception as e:
+        logging.error(f"Error fetching prices for symbols {symbols}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while fetching prices: {str(e)}"
+        )
+
+
+@router.get(
+    "/{symbol}/option-expirations",
+    response_model=list[str],
+    summary="Get Option Expiration Dates",
+    description="Retrieve available option expiration dates for a given stock symbol.",
+)
+def get_option_expirations(
+    symbol: str,
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+):
+    """
+    Get available option expiration dates for a given symbol.
+    """
+    try:
+        expirations = market_data_service.get_option_expiration_dates(symbol)
+        if not expirations:
+            logging.info(f"No option expirations found for {symbol}")
+            return []
+        return expirations
+    except ValueError as e:
+        logging.info(f"No option expirations found for {symbol}")
+        return []
+    except Exception as e:
+        logging.error(f"Error fetching option expirations for {symbol}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while fetching option expirations: {str(e)}",
+        )
+
+
+@router.get(
+    "/{symbol}/option-chain",
+    response_model=OptionChain,
+    summary="Get Option Chain",
+    description="Retrieve the full option chain (calls and puts) for a given stock symbol and expiration date.",
+)
+def get_option_chain(
+    symbol: str,
+    expiration_date: str,
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+):
+    """
+    Get the option chain for a given symbol and expiration date.
+    """
+    try:
+        chain = market_data_service.get_option_chain(symbol, expiration_date)
+        if not chain:
+            logging.info(f"No option chain found for {symbol} on {expiration_date}")
+            return None
+        return chain
+    except Exception as e:
+        logging.error(f"Error fetching option chain for {symbol} on {expiration_date}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while fetching the option chain: {str(e)}",
+        )
