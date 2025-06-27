@@ -177,6 +177,9 @@ async def read_portfolio(
             else:
                 holding.unrealized_gain_loss_percent = 0.0
 
+        holding.todays_change = contract.get('change', 0.0) * 100
+        holding.todays_change_percent = contract.get('percentChange', 0.0)
+
         enriched_holdings.append(holding)
 
     # 6. Calculate portfolio-level summary from enriched holdings.

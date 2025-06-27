@@ -128,13 +128,13 @@ const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ isOpen, o
                     <FormLabel>Transaction Type</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger id="transaction-type" name="transaction_type">
+                        <SelectTrigger id="transaction-type" name="transaction_type" className="bg-background text-white">
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="BUY">BUY</SelectItem>
-                        <SelectItem value="SELL">SELL</SelectItem>
+                        <SelectItem value="BUY" className="bg-background text-white">BUY</SelectItem>
+                        <SelectItem value="SELL" className="bg-background text-white">SELL</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -153,8 +153,8 @@ const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ isOpen, o
                         id="quantity"
                         name="quantity"
                         type="number"
-                        step={transaction.is_option ? "1" : "0.001"}
-                        min="0.001"
+                        step="1"
+                        min="1"
                         placeholder="1"
                         {...field}
                         onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
