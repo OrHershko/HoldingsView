@@ -42,7 +42,7 @@ export default apiClient;
 export const searchStocks = async (query: string) => {
   if (!query) throw new Error("Query is required.");
 
-  const { data: task } = await apiClient.post<TaskStatus>(`/market-data/search`, { query });
+  const { data: task } = await apiClient.post<TaskStatus>(`/search`, { query });
 
   const result = await pollTask(task.task_id);
 
