@@ -33,6 +33,26 @@ def create_with_portfolio(db: Session, *, obj_in: TransactionCreate, portfolio_i
     db.refresh(db_obj)
     return db_obj
 
+def update(db: Session, *, db_obj: Transaction, obj_in: TransactionCreate) -> Transaction:
+    """Update an existing transaction."""
+    # Update all fields from the input object
+    db_obj.symbol = obj_in.symbol
+    db_obj.transaction_type = obj_in.transaction_type
+    db_obj.quantity = obj_in.quantity
+    db_obj.price = obj_in.price
+    db_obj.transaction_date = obj_in.transaction_date
+    
+    # Update option-specific fields
+    db_obj.is_option = int(getattr(obj_in, 'is_option', False))
+    db_obj.option_type = getattr(obj_in, 'option_type', None)
+    db_obj.strike_price = getattr(obj_in, 'strike_price', None)
+    db_obj.expiration_date = getattr(obj_in, 'expiration_date', None)
+    db_obj.underlying_symbol = getattr(obj_in, 'underlying_symbol', None)
+    
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
+
 def remove(db: Session, *, id: int) -> Optional[Transaction]:
     """Delete a transaction by its ID."""
     obj = db.query(Transaction).get(id)

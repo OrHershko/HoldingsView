@@ -44,7 +44,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ transactions, p
               <TableHead>Date</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="text-right">Quantity</TableHead>
-              <TableHead className="text-right">Price</TableHead>
+              <TableHead className="text-right">Average Cost</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -56,6 +56,11 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ transactions, p
                   <Badge variant={tx.transaction_type === 'BUY' ? 'default' : 'destructive'} className={tx.transaction_type === 'BUY' ? 'bg-green-600/80' : 'bg-red-600/80'}>
                     {tx.transaction_type}
                   </Badge>
+                  {tx.is_option && (
+                    <Badge variant="destructive" className="bg-purple-600/80 ml-2 text-white">
+                      Option
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">{tx.quantity.toLocaleString()}</TableCell>
                 <TableCell className="text-right">${tx.price.toFixed(2)}</TableCell>

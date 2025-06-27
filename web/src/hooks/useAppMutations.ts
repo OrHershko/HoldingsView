@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/components/ui/sonner';
 import { TransactionCreate, PortfolioRead } from '@/types/api';
-import { addTransaction, deleteTransaction } from '@/services/portfolioService';
+import { addTransaction, updateTransaction, deleteTransaction } from '@/services/portfolioService';
 import apiClient from '@/services/apiService';
 
 /**
@@ -55,6 +55,25 @@ export const useAddTransactionWithPortfolioCreation = () => {
     },
     onError: (error: Error) => {
       toast.error(`Failed to add transaction: ${error.message}`);
+    },
+  });
+};
+
+/**
+ * Mutation hook for updating an existing transaction in a portfolio.
+ */
+export const useUpdateTransaction = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ portfolioId, transactionId, transaction }: { portfolioId: number, transactionId: number, transaction: TransactionCreate }) =>
+      updateTransaction(portfolioId, transactionId, transaction),
+    onSuccess: () => {
+      toast.success("Transaction updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update transaction: ${error.message}`);
     },
   });
 };

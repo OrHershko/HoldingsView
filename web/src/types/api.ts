@@ -33,6 +33,11 @@ export interface EnrichedHolding {
   unrealized_gain_loss_percent: number | null;
   todays_change: number | null;
   todays_change_percent: number | null;
+  is_option: boolean;
+  option_type?: string;
+  strike_price?: number;
+  expiration_date?: string;
+  underlying_symbol?: string;
 }
 
 // Matches api/schemas/portfolio.py -> PortfolioReadWithHoldings
@@ -114,14 +119,48 @@ export interface TechnicalIndicators {
     sma_150: number | null;
     sma_200: number | null;
     rsi_14: number | null;
+    macd_line: number | null;
+    macd_signal: number | null;
+    macd_histogram: number | null;
+    bollinger_upper: number | null;
+    bollinger_middle: number | null;
+    bollinger_lower: number | null;
 }
 
 // Matches api/schemas/market_data.py -> Fundamentals
 export interface Fundamentals {
+    // Core Info
     market_cap: number | null;
     sector: string | null;
     industry: string | null;
     description: string | null;
+    
+    // Valuation Metrics
+    pe_ratio: number | null;
+    forward_pe_ratio: number | null;
+    price_to_book_ratio: number | null;
+    price_to_sales_ratio: number | null;
+    
+    // Financial Health & Profitability
+    eps: number | null;
+    dividend_yield: number | null;
+    payout_ratio: number | null;
+    beta: number | null;
+    profit_margins: number | null;
+    return_on_equity: number | null;
+    total_debt: number | null;
+    total_cash: number | null;
+    free_cashflow: number | null;
+    
+    // Trading Info
+    week_52_high: number | null;
+    week_52_low: number | null;
+    earnings_date: string | null;
+    
+    // Analyst Ratings
+    analyst_recommendation: string | null;
+    analyst_target_price: number | null;
+    number_of_analyst_opinions: number | null;
 }
 
 // Matches api/schemas/market_data.py -> TradingInfo

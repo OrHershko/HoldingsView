@@ -19,7 +19,7 @@ import type { SymbolSearchResult } from '@/types/api';
 import { useOptionExpirations, useOptionChain, useCurrentPrice } from '@/hooks/useMarketData';
 
 const getTransactionSchema = (holdings: EnrichedHolding[]) => z.object({
-  symbol: z.string().min(1, "Symbol is required.").max(21).trim().toUpperCase(),
+  symbol: z.string().max(21).trim().toUpperCase().optional(),
   transaction_type: z.enum(["BUY", "SELL"]),
   quantity: z.coerce.number().min(0.000001, "Quantity must be greater than 0."),
   price: z.coerce.number().min(0.01, "Price must be greater than 0."),
@@ -30,6 +30,18 @@ const getTransactionSchema = (holdings: EnrichedHolding[]) => z.object({
   expiration_date: z.date().optional(),
   underlying_symbol: z.string().max(21).optional(),
 }).superRefine((data, ctx) => {
+  // Validate symbol is required for stock trades
+  if (!data.is_option) {
+    if (!data.symbol || data.symbol.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Symbol is required for stock trades.",
+        path: ["symbol"],
+      });
+    }
+  }
+  
+  // Validate sell quantity for stock trades
   if (data.transaction_type === "SELL" && holdings && holdings.length > 0 && !data.is_option) {
     const holding = holdings.find(h => h.symbol === data.symbol);
     const currentQuantity = holding?.quantity || 0;
@@ -41,6 +53,8 @@ const getTransactionSchema = (holdings: EnrichedHolding[]) => z.object({
       });
     }
   }
+  
+  // Validate required fields for options trades
   if (data.is_option) {
     if (!data.option_type) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Option type is required.", path: ["option_type"] });
@@ -51,7 +65,7 @@ const getTransactionSchema = (holdings: EnrichedHolding[]) => z.object({
     if (!data.expiration_date) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiration date is required.", path: ["expiration_date"] });
     }
-    if (!data.underlying_symbol) {
+    if (!data.underlying_symbol || data.underlying_symbol.trim() === "") {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Underlying symbol is required.", path: ["underlying_symbol"] });
     }
   }
@@ -195,7 +209,7 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
       symbol: "",
       transaction_type: "BUY",
       quantity: 1,
-      price: 0,
+      price: 0.01,
       transaction_date: new Date(),
       is_option: false,
       option_type: undefined,
@@ -254,17 +268,26 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
   // Auto-update price when symbol changes and current price is available
   React.useEffect(() => {
     if (refreshPrice && symbolForPrice && canRefresh) {
-      // Only update if the current price field value is still the default (0) or empty
+      // Only update if the current price field value is still the default (0.01) or empty
       const currentPriceValue = form.getValues('price');
-      if (currentPriceValue === 0 || !currentPriceValue) {
+      if (currentPriceValue === 0.01 || !currentPriceValue) {
         form.setValue('price', refreshPrice.toFixed(2), { shouldValidate: true });
       }
     }
   }, [refreshPrice, symbolForPrice, canRefresh, form]);
 
   const onSubmit = (data: TransactionFormData) => {
+    console.log('Form submitted with data:', data);
+    console.log('Portfolio ID:', portfolioId);
+    console.log('Form errors:', form.formState.errors);
+    
+    if (!portfolioId) {
+      console.error('No portfolio ID provided');
+      return;
+    }
+
     const baseData: TransactionCreate = {
-      symbol: data.is_option ? data.underlying_symbol!.toUpperCase() : data.symbol.toUpperCase(),
+      symbol: data.is_option ? data.underlying_symbol!.toUpperCase() : (data.symbol || "").toUpperCase(),
       transaction_type: data.transaction_type,
       quantity: data.quantity,
       price: data.price,
@@ -277,10 +300,16 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
       underlying_symbol: data.is_option ? data.underlying_symbol?.toUpperCase() : undefined,
     };
 
+    console.log('Submitting transaction:', baseData);
+
     addTransactionMutation.mutate({ portfolioId, transaction: baseData }, {
       onSuccess: () => {
+        console.log('Transaction added successfully');
         form.reset();
         onClose();
+      },
+      onError: (error) => {
+        console.error('Transaction failed:', error);
       },
     });
   };
@@ -292,7 +321,7 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
         symbol: "",
         transaction_type: "BUY",
         quantity: 1,
-        price: 0,
+        price: 0.01,
         transaction_date: new Date(),
         is_option: false,
         option_type: undefined,
@@ -315,6 +344,20 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
+            
+            {/* Debug Section - Remove this after debugging */}
+            {Object.keys(form.formState.errors).length > 0 && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                <h4 className="font-bold">Form Validation Errors:</h4>
+                <ul className="list-disc list-inside">
+                  {Object.entries(form.formState.errors).map(([field, error]) => (
+                    <li key={field}>
+                      <strong>{field}:</strong> {error.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             
             {/* Trade Type Toggle */}
             <FormField
@@ -601,7 +644,18 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={addTransactionMutation.isPending}>
+              <Button 
+                type="submit" 
+                disabled={addTransactionMutation.isPending}
+                onClick={(e) => {
+                  console.log('Submit button clicked');
+                  console.log('Form is valid:', form.formState.isValid);
+                  console.log('Form errors:', form.formState.errors);
+                  console.log('Form values:', form.getValues());
+                  
+                  // Let the form handle submission normally
+                }}
+              >
                 {addTransactionMutation.isPending ? 'Adding...' : `Add ${isOption ? 'Options' : 'Stock'} Trade`}
               </Button>
             </DialogFooter>

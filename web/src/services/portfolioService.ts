@@ -13,6 +13,18 @@ export const addTransaction = async (portfolioId: number, transaction: Transacti
 };
 
 /**
+ * Updates an existing transaction in a portfolio.
+ * @param portfolioId The ID of the portfolio.
+ * @param transactionId The ID of the transaction to update.
+ * @param transaction The updated transaction data.
+ * @returns The updated transaction.
+ */
+export const updateTransaction = async (portfolioId: number, transactionId: number, transaction: TransactionCreate): Promise<TransactionRead> => {
+  const { data } = await apiClient.put(`/portfolios/${portfolioId}/transactions/${transactionId}`, transaction);
+  return data;
+};
+
+/**
  * Deletes a transaction from a portfolio.
  * @param portfolioId The ID of the portfolio.
  * @param transactionId The ID of the transaction to delete.

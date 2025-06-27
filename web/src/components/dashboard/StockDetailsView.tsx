@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useEnrichedMarketData } from '@/hooks/useMarketData';
 import { Skeleton } from '@/components/ui/skeleton';
 import StockChart from '@/components/StockChart';
+import AdvancedStockData from '@/components/AdvancedStockData';
 import AIStockAnalysis from '@/components/AIStockAnalysis';
 import { AlertTriangle, ServerCrash } from 'lucide-react';
 import { EnrichedMarketData, TransactionRead } from '@/types/api';
@@ -85,6 +86,7 @@ const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transaction
         onIntervalChange={setInterval}
         containerWidth = {containerWidth}
       />
+      <AdvancedStockData stockData={stockData as EnrichedMarketData} />
       <AIStockAnalysis stockData={stockData as EnrichedMarketData} LanguageOptions={LanguageOptions} />
       <AITradingStrategy stockData={stockData as EnrichedMarketData} LanguageOptions={LanguageOptions} />
       <TransactionHistory transactions={transactions} portfolioId={portfolioId} />
@@ -98,6 +100,16 @@ const LoadingSkeleton: React.FC = () => (
     <div className="space-y-3">
       <Skeleton className="h-8 w-3/4 bg-gray-700" />
       <Skeleton className="h-[450px] w-full bg-gray-700" />
+    </div>
+    {/* Advanced Data Skeleton */}
+    <div className="space-y-3">
+      <Skeleton className="h-8 w-1/2 bg-gray-700" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Skeleton className="h-32 w-full bg-gray-700" />
+        <Skeleton className="h-32 w-full bg-gray-700" />
+        <Skeleton className="h-32 w-full bg-gray-700" />
+        <Skeleton className="h-32 w-full bg-gray-700" />
+      </div>
     </div>
     {/* Analysis Skeleton */}
     <div className="space-y-3">

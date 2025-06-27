@@ -1,11 +1,10 @@
-// web/src/components/StockChart.tsx
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import LightweightStockChart from './charts/LightweightStockChart';
 import { EnrichedMarketData } from '@/types/api';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from './ui/dropdown-menu';
-import { SlidersHorizontal, CalendarRange, Clock } from 'lucide-react';
+import { SlidersHorizontal, CalendarRange, Clock, TrendingUp, TrendingDown } from 'lucide-react';
 import { UTCTimestamp } from 'lightweight-charts';
 import type { ChartDataPoint } from '@/components/charts/LightweightStockChart';
 
@@ -270,9 +269,50 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
           <CardTitle className="text-2xl">{stockData.short_name || stockData.symbol}</CardTitle>
           <div className="text-right">
             <p className="text-2xl font-bold">${stockData.current_price?.toFixed(2)}</p>
-            <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-              {stockData.trading_info?.regular_market_change_percent?.toFixed(2)}%
-            </p>
+            <div className="flex flex-col items-end gap-1">
+              <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                {isPositive ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
+                {stockData.trading_info?.regular_market_change_percent?.toFixed(2)}%
+              </p>
+              
+              {/* Pre/After Market Hours Display */}
+              {stockData.trading_info?.market_state && stockData.trading_info.market_state !== 'REGULAR' && (
+                <div className="text-xs">
+                  {/* Pre-market */}
+                  {stockData.trading_info.pre_market_price && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-400">Pre:</span>
+                      <span className="text-white">${stockData.trading_info.pre_market_price.toFixed(2)}</span>
+                      {stockData.trading_info.pre_market_change_percent && (
+                        <span className={`${stockData.trading_info.pre_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          ({stockData.trading_info.pre_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.pre_market_change_percent.toFixed(2)}%)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Post-market */}
+                  {stockData.trading_info.post_market_price && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-400">After:</span>
+                      <span className="text-white">${stockData.trading_info.post_market_price.toFixed(2)}</span>
+                      {stockData.trading_info.post_market_change_percent && (
+                        <span className={`${stockData.trading_info.post_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          ({stockData.trading_info.post_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.post_market_change_percent.toFixed(2)}%)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Market State Indicator */}
+                  <div className="text-gray-500 text-[10px] mt-0.5">
+                    {stockData.trading_info.market_state === 'PRE' && 'Pre-Market'}
+                    {stockData.trading_info.market_state === 'POST' && 'After Hours'}
+                    {stockData.trading_info.market_state === 'CLOSED' && 'Market Closed'}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </CardHeader>

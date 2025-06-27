@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePortfolio } from '@/hooks/useAppQueries';
+import { useDeleteTransaction } from '@/hooks/useAppMutations';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Sidebar from '@/components/Sidebar';
@@ -9,7 +10,10 @@ import PortfolioHeader from '@/components/dashboard/PortfolioHeader';
 import HoldingsList from '@/components/dashboard/HoldingsList';
 import StockDetailsView from '@/components/dashboard/StockDetailsView';
 import AddTransactionDialog from '@/components/AddTransactionDialog';
+import DeleteHoldingDialog from '@/components/DeleteHoldingDialog';
+import EditHoldingDialog from '@/components/EditHoldingDialog';
 import { toast } from '@/components/ui/sonner';
+import { EnrichedHolding, TransactionRead } from '@/types/api';
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 
 const FullPageLoader: React.FC = () => (
@@ -25,6 +29,11 @@ const Index: React.FC = () => {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'holdings' | 'details'>('holdings');
   const [chartContainerWidth, setChartContainerWidth] = useState(0);
+
+  // Dialog states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedHolding, setSelectedHolding] = useState<EnrichedHolding | null>(null);
 
   const observerRef = useRef<ResizeObserver | null>(null);
 
@@ -60,6 +69,8 @@ const Index: React.FC = () => {
     error: portfolioError 
   } = usePortfolio({ enabled: !isGuest });
 
+  const deleteTransactionMutation = useDeleteTransaction();
+
   const holdings = useMemo(() => {
     return portfolioData?.holdings?.sort((a, b) => a.symbol.localeCompare(b.symbol)) || [];
   }, [portfolioData]);
@@ -77,6 +88,38 @@ const Index: React.FC = () => {
       setMobileView('details');
     }
   }, []);
+
+  const handleEditHolding = useCallback((holding: EnrichedHolding) => {
+    setSelectedHolding(holding);
+    setEditDialogOpen(true);
+  }, []);
+
+  const handleDeleteHolding = useCallback((holding: EnrichedHolding) => {
+    setSelectedHolding(holding);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const handleConfirmDeleteHolding = useCallback(async (transactionIds: number[]) => {
+    if (!portfolioData?.id) return;
+
+    try {
+      // Delete all transactions for this holding
+      for (const transactionId of transactionIds) {
+        await deleteTransactionMutation.mutateAsync({
+          portfolioId: portfolioData.id,
+          transactionId,
+        });
+      }
+      
+      toast.success(`Successfully deleted ${selectedHolding?.is_option ? 'option' : 'stock'} holding`);
+      setDeleteDialogOpen(false);
+      setSelectedHolding(null);
+    } catch (error) {
+      toast.error(`Failed to delete holding: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [portfolioData?.id, deleteTransactionMutation, selectedHolding]);
+
+
 
   // Handle window resize to reset mobile view if screen becomes desktop
   useEffect(() => {
@@ -99,6 +142,9 @@ const Index: React.FC = () => {
     setAddTransactionOpen(false);
     setSidebarOpen(false);
     setActiveNavItem('home');
+    setDeleteDialogOpen(false);
+    setEditDialogOpen(false);
+    setSelectedHolding(null);
   };
 
   if (authLoading || (!isGuest && portfolioLoading && !portfolioData)) {
@@ -140,7 +186,7 @@ const Index: React.FC = () => {
           <div className="hidden md:block h-full p-4 lg:p-6">
             <ResizablePanelGroup direction="horizontal" className="h-full w-full">
               <ResizablePanel defaultSize={35} minSize={0}>
-                <div className="flex flex-col h-full pr-4 space-y-4 overflow-y-scroll overflow-x-hidden">
+                <div className="flex flex-col h-full pr-4 space-y-4 overflow-y-auto overflow-x-hidden">
                   <PortfolioHeader 
                     portfolio={portfolioData}
                     onAddStock={handleOpenAddTransaction}
@@ -148,6 +194,8 @@ const Index: React.FC = () => {
                   <HoldingsList
                     holdings={holdings}
                     onSelectStock={handleSelectStock}
+                    onEditHolding={handleEditHolding}
+                    onDeleteHolding={handleDeleteHolding}
                   />
                 </div>
               </ResizablePanel>
@@ -167,7 +215,7 @@ const Index: React.FC = () => {
             </ResizablePanelGroup>
           </div>
 
-          <div className="md:hidden h-full flex flex-col overflow-y-scroll">
+          <div className="md:hidden h-full flex flex-col overflow-y-auto">
             {mobileView === 'holdings' ? (
               <div className="flex-1">
                 <div className="h-full flex flex-col space-y-4 p-2">
@@ -178,6 +226,8 @@ const Index: React.FC = () => {
                   <HoldingsList
                     holdings={holdings}
                     onSelectStock={handleSelectStock}
+                    onEditHolding={handleEditHolding}
+                    onDeleteHolding={handleDeleteHolding}
                   />
                 </div>
               </div>
@@ -195,11 +245,34 @@ const Index: React.FC = () => {
         </main>
       </div>
 
+      {/* Dialogs */}
       <AddTransactionDialog
         isOpen={isAddTransactionOpen}
         onClose={() => setAddTransactionOpen(false)}
         portfolioId={portfolioData?.id}
         holdings={holdings || []}
+      />
+
+      <DeleteHoldingDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setSelectedHolding(null);
+        }}
+        holding={selectedHolding}
+        transactions={portfolioData?.transactions || []}
+        onConfirmDelete={handleConfirmDeleteHolding}
+      />
+
+      <EditHoldingDialog
+        isOpen={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setSelectedHolding(null);
+        }}
+        holding={selectedHolding}
+        allTransactions={portfolioData?.transactions || []}
+        portfolioId={portfolioData?.id || 0}
       />
     </div>
   );

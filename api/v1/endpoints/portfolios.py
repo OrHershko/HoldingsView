@@ -85,17 +85,24 @@ async def read_portfolio(
     # 1. Calculate base holdings (symbol, quantity, cost basis) from transactions.
     base_holdings = calculate_holdings_from_transactions(portfolio.transactions)
 
-    # 2. Get unique symbols from the calculated holdings to fetch market data.
-    unique_symbols = [h.symbol for h in base_holdings]
+    # 2. Separate stock and options holdings for different market data fetching
+    stock_holdings = [h for h in base_holdings if not h.is_option]
+    options_holdings = [h for h in base_holdings if h.is_option]
 
-    # 3. Fetch current prices and daily changes for these symbols.
-    market_data = await market_data_service.get_current_prices(unique_symbols)
+    # 3. Fetch current prices for stock holdings
+    stock_symbols = [h.symbol for h in stock_holdings]
+    stock_market_data = await market_data_service.get_current_prices(stock_symbols) if stock_symbols else {}
 
-    # 4. Enrich holdings with market data and calculate market value, P/L, etc.
+    # 4. Get market data service for options
+    market_service = market_data_service.get_market_data_service()
+
+    # 5. Enrich holdings with market data and calculate market value, P/L, etc.
     enriched_holdings: List[CalculatedHolding] = []
     total_todays_change = 0.0
-    for holding in base_holdings:
-        symbol_data = market_data.get(holding.symbol)
+    
+    # Process stock holdings
+    for holding in stock_holdings:
+        symbol_data = stock_market_data.get(holding.symbol)
         current_price = None
         todays_change = 0.0
         todays_change_percent = 0.0
@@ -130,7 +137,49 @@ async def read_portfolio(
             total_todays_change += holding.quantity * todays_change
         enriched_holdings.append(holding)
 
-    # 5. Calculate portfolio-level summary from enriched holdings.
+    # Process options holdings
+    for holding in options_holdings:
+        current_price = None
+        
+        # Get option chain data for this underlying symbol and expiration
+        if holding.underlying_symbol and holding.expiration_date:
+            expiration_str = holding.expiration_date.strftime('%Y-%m-%d')
+            option_chain = market_service.get_option_chain(holding.underlying_symbol, expiration_str)
+            
+            if option_chain:
+                # Find the specific contract
+                contracts = option_chain.get('calls' if holding.option_type == 'CALL' else 'puts', [])
+                contract = next((c for c in contracts if c.get('strike') == holding.strike_price), None)
+                
+                if contract:
+                    # Use the last price, or bid/ask midpoint if no last price
+                    current_price = contract.get('lastPrice')
+                    if not current_price or current_price == 0:
+                        bid = contract.get('bid', 0)
+                        ask = contract.get('ask', 0)
+                        if bid > 0 and ask > 0:
+                            current_price = (bid + ask) / 2
+                        elif bid > 0:
+                            current_price = bid
+                        elif ask > 0:
+                            current_price = ask
+
+        if current_price is not None and current_price > 0:
+            holding.current_price = current_price
+            holding.market_value = holding.quantity * current_price * 100  # Options are priced per share but sold in contracts of 100
+            holding.unrealized_gain_loss = (
+                holding.market_value - holding.total_cost_basis
+            )
+            if holding.total_cost_basis > 0:
+                holding.unrealized_gain_loss_percent = (
+                    holding.unrealized_gain_loss / holding.total_cost_basis
+                ) * 100
+            else:
+                holding.unrealized_gain_loss_percent = 0.0
+
+        enriched_holdings.append(holding)
+
+    # 6. Calculate portfolio-level summary from enriched holdings.
     total_market_value = sum(
         h.market_value for h in enriched_holdings if h.market_value is not None
     )
@@ -155,7 +204,7 @@ async def read_portfolio(
                 total_todays_change / value_before_change
             ) * 100
 
-    # 6. Combine portfolio data with calculated holdings and summary for the response.
+    # 7. Combine portfolio data with calculated holdings and summary for the response.
     portfolio_response_data = {
         "id": portfolio.id,
         "name": portfolio.name,
@@ -170,6 +219,7 @@ async def read_portfolio(
         "total_unrealized_gain_loss": total_unrealized_gain_loss,
         "total_unrealized_gain_loss_percent": total_unrealized_gain_loss_percent,
         "total_todays_change": total_todays_change,
+        "total_todays_change_percent": total_todays_change_percent,
     }
 
     return PortfolioReadWithHoldings(**portfolio_response_data)
@@ -299,6 +349,65 @@ def delete_transaction(
 
     deleted_transaction = crud_transaction.remove(db=db, id=transaction_id)
     return deleted_transaction
+
+
+@router.put(
+    "/{portfolio_id}/transactions/{transaction_id}",
+    response_model=TransactionRead,
+    summary="Update Transaction in Portfolio",
+)
+def update_transaction(
+    *,
+    db: Session = Depends(get_db),
+    portfolio_id: int,
+    transaction_id: int,
+    transaction_in: TransactionCreate,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Update an existing transaction in a portfolio.
+    """
+    portfolio = crud_portfolio.get(db=db, id=portfolio_id, user_id=current_user.id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    transaction = crud_transaction.get(db=db, id=transaction_id)
+    if not transaction or transaction.portfolio_id != portfolio_id:
+        raise HTTPException(
+            status_code=404, detail="Transaction not found in this portfolio"
+        )
+
+    # Validate SELL transactions for stocks (similar to create transaction)
+    if transaction_in.transaction_type == "SELL" and not getattr(transaction_in, 'is_option', False):
+        # Get all transactions except the one being updated for validation
+        other_transactions = [t for t in portfolio.transactions if t.id != transaction_id]
+        calculated_holdings = calculate_holdings_from_transactions(other_transactions)
+
+        current_holding = next(
+            (
+                h
+                for h in calculated_holdings
+                if h.symbol.upper() == transaction_in.symbol.upper()
+            ),
+            None,
+        )
+
+        current_quantity = current_holding.quantity if current_holding else 0.0
+
+        if current_quantity < transaction_in.quantity:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Insufficient quantity of {transaction_in.symbol}. "
+                    f"Available to sell: {current_quantity}, "
+                    f"attempting to sell: {transaction_in.quantity}"
+                ),
+            )
+
+    updated_transaction = crud_transaction.update(
+        db=db, db_obj=transaction, obj_in=transaction_in
+    )
+    return updated_transaction
 
 
 # --- AI Analysis Endpoint ---
