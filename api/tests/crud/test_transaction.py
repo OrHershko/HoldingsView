@@ -67,3 +67,31 @@ def test_remove_transaction(db: Session) -> None:
     assert removed_transaction
     assert removed_transaction.id == transaction_id
     assert retrieved_after_delete is None
+
+def test_create_option_transaction(db: Session) -> None:
+    user = create_random_user(db)
+    portfolio = create_random_portfolio(db, user_id=user.id)
+    transaction_in = TransactionCreate(
+        symbol="AAPL240621C00150000",
+        transaction_type="BUY",
+        quantity=2,
+        price=3.5,
+        transaction_date=date(2024, 6, 1),
+        is_option=True,
+        option_type="CALL",
+        strike_price=150.0,
+        expiration_date=date(2024, 6, 21),
+        underlying_symbol="AAPL",
+    )
+    transaction = crud_transaction.create_with_portfolio(
+        db=db, obj_in=transaction_in, portfolio_id=portfolio.id
+    )
+    assert transaction.symbol == transaction_in.symbol
+    assert transaction.quantity == transaction_in.quantity
+    assert transaction.portfolio_id == portfolio.id
+    assert transaction.transaction_type.value == "BUY"
+    assert transaction.is_option == 1
+    assert transaction.option_type == "CALL"
+    assert transaction.strike_price == 150.0
+    assert transaction.expiration_date == date(2024, 6, 21)
+    assert transaction.underlying_symbol == "AAPL"

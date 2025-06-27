@@ -73,7 +73,14 @@ const AITradingStrategy: React.FC<AITradingStrategyProps> = ({ stockData, Langua
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold flex items-center"><LightbulbIcon className="mr-2 h-6 w-6" />AI Trading Strategy</h2>
         <LanguageOptions language={language} setLanguage={setLanguage} />
-        <Button onClick={fetchStrategy} disabled={isLoading} size="sm" className="min-w-[125px]">
+        <Button 
+          id="generate-strategy-button"
+          onClick={fetchStrategy} 
+          disabled={isLoading} 
+          size="sm" 
+          className="min-w-[125px]"
+          aria-label="Generate AI trading strategy"
+        >
           {isLoading ? <RefreshCwIcon className="h-4 w-4 animate-spin" /> : 'Generate Strategy'}
         </Button>
       </div>

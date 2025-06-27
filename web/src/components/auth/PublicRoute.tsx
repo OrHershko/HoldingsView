@@ -12,7 +12,7 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
 
   useEffect(() => {
     if (currentUser) {
-      toast.info("You're already logged in");
+      toast.info("You're logged in!");
     }
   }, [currentUser]);
 

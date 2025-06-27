@@ -37,13 +37,18 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const showBackButton = mobileView === 'details' && selectedSymbol;
+  const [showBackButton, setShowBackButton] = useState(false);
 
   useEffect(() => {
     if (searchOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [searchOpen]);
+
+  useEffect(() => {
+    const shouldShowBack = mobileView === 'details' && selectedSymbol;
+    setShowBackButton(!!shouldShowBack);
+  }, [mobileView, selectedSymbol]);
 
   return (
     <header className="flex justify-between items-center p-3 md:p-4 lg:p-5 mb-2 border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm min-w-[300px]">
@@ -52,16 +57,18 @@ const Header: React.FC<HeaderProps> = ({
           {showBackButton ? (
             <button 
               onClick={onBackToHoldings}
-              className="text-white hover:text-gray-300 transition-colors p-1"
+              className="text-white hover:text-gray-300 transition-colors p-2 rounded-md hover:bg-gray-700/50 active:bg-gray-600/50"
+              aria-label="Back to holdings"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={24} />
             </button>
           ) : (
             <button 
               onClick={toggleSidebar}
-              className="text-white hover:text-gray-300 transition-colors p-1"
+              className="text-white hover:text-gray-300 transition-colors p-2 rounded-md hover:bg-gray-700/50 active:bg-gray-600/50"
+              aria-label="Open menu"
             >
-              <Menu size={20} />
+              <Menu size={24} />
             </button>
           )}
         </div>
@@ -70,7 +77,7 @@ const Header: React.FC<HeaderProps> = ({
           onClick={toggleSidebar}
           className="hidden md:block text-white hover:text-gray-300 transition-colors"
         >
-          <Menu size={24} />
+          <Menu size={24} color="white"/>
         </button>
       </div>
 
@@ -90,7 +97,7 @@ const Header: React.FC<HeaderProps> = ({
                 className="text-white hover:text-gray-300 transition-colors p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Search stocks"
               >
-                <SearchIcon size={22}/>
+                <SearchIcon size={22} color="white"/>
               </button>
             </PopoverTrigger>
             <PopoverContent align="center" className="p-2 bg-gray-900/50 backdrop-blur-sm">
@@ -108,7 +115,7 @@ const Header: React.FC<HeaderProps> = ({
               className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 p-1"
               title="Log out"
             >
-              <LogOut size={18} className="md:w-5 md:h-5" />
+              <LogOut size={22} color="white"/>
             </button>
           </>
         )}

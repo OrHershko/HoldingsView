@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import datetime
 
 class OHLCV(BaseModel):
@@ -108,3 +108,25 @@ class SymbolSearchResult(BaseModel):
 
 class SymbolSearchResponse(BaseModel):
     results: list[SymbolSearchResult]
+
+class OptionContract(BaseModel):
+    contractSymbol: str
+    strike: float
+    lastPrice: float
+    bid: float
+    ask: float
+    change: float
+    percentChange: float
+    volume: Optional[float] = None
+    openInterest: Optional[float] = None
+    impliedVolatility: float
+    inTheMoney: bool
+    
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class OptionChain(BaseModel):
+    calls: List[OptionContract]
+    puts: List[OptionContract]

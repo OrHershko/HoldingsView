@@ -230,14 +230,14 @@ def create_transaction(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Create a new transaction (BUY or SELL) and add it to a portfolio.
+    Create a new transaction (BUY, SELL, OPTION_BUY, OPTION_SELL) and add it to a portfolio.
     """
     portfolio = crud_portfolio.get(db=db, id=portfolio_id, user_id=current_user.id)
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
 
     # --- Start of new validation logic ---
-    if transaction_in.transaction_type == "SELL":
+    if transaction_in.transaction_type == "SELL" and not getattr(transaction_in, 'is_option', False):
         # portfolio.transactions is available due to eager loading in crud_portfolio.get
         calculated_holdings = calculate_holdings_from_transactions(
             portfolio.transactions

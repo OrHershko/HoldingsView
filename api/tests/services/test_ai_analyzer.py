@@ -63,7 +63,7 @@ def sample_enriched_data() -> EnrichedMarketData:
             description="A big tech company.",
         ),
         trading_info=TradingInfo(
-            market_state="REGULAR", regular_market_change_percent=0.015
+            market_state="REGULAR", regular_market_change_percent=1.5
         ),
         news=[
             NewsArticle(

@@ -24,6 +24,7 @@ __pycache__
 *.njsproj
 *.sln
 *.sw?
+.pytest_cache
 
 # Environment variables
 .env

@@ -1,13 +1,24 @@
+export type TransactionType = "BUY" | "SELL";
+
 // Matches api/schemas/transaction.py -> TransactionRead
 export interface TransactionRead {
   id: number;
   portfolio_id: number;
   created_at: string;
-  symbol: string;
-  transaction_type: "BUY" | "SELL";
+  updated_at: string;
+  // Increased max length to 21 for OCC option symbols
+  symbol: string; // up to 21 chars
+  transaction_type: TransactionType;
   quantity: number;
   price: number;
   transaction_date: string; // YYYY-MM-DD
+  // --- Option-specific fields ---
+  is_option: boolean;
+  option_type?: string;
+  strike_price?: number;
+  expiration_date?: string;
+  // Increased max length to 21 for OCC option symbols
+  underlying_symbol?: string; // up to 21 chars
 }
 
 // Matches api/schemas/portfolio.py -> CalculatedHolding
@@ -49,10 +60,17 @@ export interface PortfolioRead {
 // Matches api/schemas/transaction.py -> TransactionCreate
 export interface TransactionCreate {
   symbol: string;
-  transaction_type: "BUY" | "SELL";
+  transaction_type: TransactionType;
   quantity: number;
   price: number;
-  transaction_date: string; // YYYY-MM-DD
+  transaction_date: string;
+  portfolio_id: number;
+  // Option-specific fields
+  is_option: boolean;
+  option_type?: string;
+  strike_price?: number;
+  expiration_date?: string;
+  underlying_symbol?: string;
 }
 
 // Matches api/schemas/task.py -> TaskStatus
@@ -140,4 +158,23 @@ export interface SymbolSearchResult {
   exchDisp?: string;
   typeDisp?: string;
   quoteType?: string;
+}
+
+export interface OptionContract {
+  contractSymbol: string;
+  strike: number;
+  lastPrice: number;
+  bid: number;
+  ask: number;
+  change: number;
+  percentChange: number;
+  volume?: number;
+  openInterest?: number;
+  impliedVolatility: number;
+  inTheMoney: boolean;
+}
+
+export interface OptionChain {
+  calls: OptionContract[];
+  puts: OptionContract[];
 }
