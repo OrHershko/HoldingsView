@@ -306,9 +306,16 @@ async def search_symbols(query: str) -> SymbolSearchResponse:
         return getattr(s, 'quotes', [])
 
     quotes = await run_in_threadpool(do_search)
-    results = [
-        SymbolSearchResult(**q)
-        for q in quotes
-        if 'symbol' in q and q.get('quoteType') in {'EQUITY', 'ETF'}
-    ]
+    
+    # Deduplicate by symbol since SymbolSearchResult objects aren't hashable
+    seen_symbols = set()
+    results = []
+    
+    for q in quotes:
+        if 'symbol' in q and q.get('quoteType') in {'EQUITY', 'ETF'}:
+            symbol = q['symbol']
+            if symbol not in seen_symbols:
+                seen_symbols.add(symbol)
+                results.append(SymbolSearchResult(**q))
+    
     return SymbolSearchResponse(results=results)

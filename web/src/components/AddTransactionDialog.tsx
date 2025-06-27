@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAddTransactionWithPortfolioCreation } from '@/hooks/useAppMutations';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { CalendarIcon, RefreshCw } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -242,7 +242,8 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
   const getRefreshPrice = () => {
     if (isOption && currentOptionContract) {
       // For options, use bid for SELL transactions and ask for BUY transactions
-      return transactionType === 'SELL' ? currentOptionContract.bid : currentOptionContract.ask;
+      const price = transactionType === 'SELL' ? currentOptionContract.bid : currentOptionContract.ask;
+      return price !== 0 ? price : currentOptionContract.lastPrice;
     }
     return currentPrice;
   };
@@ -433,7 +434,7 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
                         <SelectContent>
                           {optionChain && (optionType === 'CALL' ? optionChain.calls : optionChain.puts).map(c => (
                             <SelectItem key={c.contractSymbol} value={String(c.strike)} className="bg-background text-white">
-                              ${c.strike} (Bid: ${c.bid}, Ask: ${c.ask})
+                              ${c.strike} (Bid: ${c.bid}, Ask: ${c.ask}, Last: ${c.lastPrice})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -526,7 +527,7 @@ const AddTransactionDialog: React.FC<AddTransactionDialogProps> = ({ isOpen, onC
                             {...field} 
                             className="flex-1"
                           />
-                          {symbolForPrice && refreshPrice && (
+                          {symbolForPrice != null && refreshPrice != null && (
                             <Button
                               id="refresh-price-button"
                               type="button"
