@@ -2,11 +2,20 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+const isDev = process.env.NODE_ENV === 'development';
+
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: isDev ? {
+      '/api/v1': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+    } : undefined,
   },
   plugins: [
     react(),
