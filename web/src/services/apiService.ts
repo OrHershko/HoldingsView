@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { auth } from '@/config/firebase';
+import { TaskStatus } from '@/types/api';
+import { pollTask } from '@/services/useMarketData';
 
 const apiClient = axios.create({
     baseURL: '/api/v1'
@@ -38,6 +40,11 @@ apiClient.interceptors.response.use(
 export default apiClient;
 
 export const searchStocks = async (query: string) => {
-  const { data } = await apiClient.post(`/market-data/search`, { query });
-  return data;
+  if (!query) throw new Error("Query is required.");
+
+  const { data: task } = await apiClient.post<TaskStatus>(`/market-data/search`, { query });
+
+  const result = await pollTask(task.task_id);
+
+  return result;
 };

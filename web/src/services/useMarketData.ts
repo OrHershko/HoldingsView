@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/services/apiService';
 import { EnrichedMarketData, TaskStatus } from '@/types/api';
 
-const pollTask = async (taskId: string, retries = 20, interval = 3000): Promise<any> => {
+export const pollTask = async (taskId: string, retries = 20, interval = 3000): Promise<any> => {
   for (let i = 0; i < retries; i++) {
     await new Promise(resolve => setTimeout(resolve, interval));
     const { data: taskStatus } = await apiClient.get<TaskStatus>(`/tasks/${taskId}`);
