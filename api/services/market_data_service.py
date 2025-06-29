@@ -13,43 +13,75 @@ def _fetch_prices_sync(symbols: List[str]) -> Dict[str, Dict[str, float]]:
     """
     results: Dict[str, Dict[str, float]] = {}
     
+    if not symbols:
+        return results
+
     try:
-        # We fetch 2 days of data to calculate change from the previous close.
+        # Fetching data for multiple tickers at once
         data: pd.DataFrame = yf.download(
             tickers=symbols, 
             period="2d", 
             progress=False,
+            group_by='ticker'
         )
 
-        if data.empty or len(data) < 2:
+        if data.empty:
+            logging.warning("yfinance.download returned an empty DataFrame.")
             return {}
 
-        close_prices_df = data.get('Close')
-        # If single ticker, it's a Series, not a DataFrame slice.
-        if isinstance(close_prices_df, pd.Series):
-            close_prices_df = close_prices_df.to_frame(name=symbols[0])
+        for symbol in symbols:
+            try:
+                symbol_data = data[symbol]
+                if symbol_data.empty or len(symbol_data) < 2:
+                    logging.warning(f"Not enough data for {symbol} to calculate change.")
+                    # Try to get at least the current price if possible
+                    if not symbol_data.empty:
+                         last_price = symbol_data['Close'].iloc[-1]
+                         if pd.notna(last_price):
+                            results[symbol] = {
+                                "price": float(last_price),
+                                "change": 0.0,
+                                "change_percent": 0.0,
+                            }
+                    continue
 
-        last_prices = close_prices_df.iloc[-1]
-        prev_prices = close_prices_df.iloc[-2]
+                # Ensure we have 'Close' column
+                if 'Close' not in symbol_data.columns:
+                    logging.warning(f"'Close' column not found for {symbol}.")
+                    continue
 
-        changes = last_prices - prev_prices
-        percent_changes = (changes / prev_prices) * 100
+                # Get the last two available closing prices
+                last_two_closes = symbol_data['Close'].dropna().tail(2)
+                if len(last_two_closes) < 2:
+                    logging.warning(f"Not enough closing prices for {symbol} to calculate change.")
+                    price = last_two_closes.iloc[-1] if not last_two_closes.empty else 0.0
+                    if pd.notna(price):
+                        results[symbol] = {
+                            "price": float(price),
+                            "change": 0.0,
+                            "change_percent": 0.0,
+                        }
+                    continue
+                
+                last_price = last_two_closes.iloc[-1]
+                prev_price = last_two_closes.iloc[-2]
 
-        for symbol in close_prices_df.columns:
-            price = last_prices.get(symbol)
-            if pd.notna(price):
-                change = changes.get(symbol, 0.0)
-                change_percent = percent_changes.get(symbol, 0.0)
+                change = last_price - prev_price
+                percent_change = (change / prev_price) * 100 if prev_price != 0 else 0.0
 
-                results[symbol] = {
-                    "price": float(price),
-                    "change": float(change) if pd.notna(change) else 0.0,
-                    "change_percent": float(change_percent) if pd.notna(change_percent) else 0.0,
-                }
+                if pd.notna(last_price):
+                    results[symbol] = {
+                        "price": float(last_price),
+                        "change": float(change) if pd.notna(change) else 0.0,
+                        "change_percent": float(percent_change) if pd.notna(percent_change) else 0.0,
+                    }
+            except KeyError:
+                logging.warning(f"No data found for symbol: {symbol} in the downloaded dataframe.")
+            except Exception as e:
+                logging.error(f"Error processing data for symbol {symbol}: {e}")
 
     except Exception as e:
-        # Broad exception catch as yfinance can have various internal issues.
-        print(f"An error occurred while fetching data with yfinance.download: {e}")
+        logging.error(f"An error occurred during yfinance.download: {e}")
         return {} 
         
     return results

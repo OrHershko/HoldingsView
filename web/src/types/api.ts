@@ -217,3 +217,10 @@ export interface OptionChain {
   calls: OptionContract[];
   puts: OptionContract[];
 }
+
+export interface WatchlistItem {
+  id: number;
+  symbol: string;
+  user_id: number;
+  name: string;
+}

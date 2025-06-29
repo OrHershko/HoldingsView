@@ -1,8 +1,23 @@
 from sqlalchemy.orm import Session
 
 from api.models.user import User
+from api.models.watchlist_item import WatchlistItem
 from api.schemas.user import UserCreate, UserUpdate
 
+DEFAULT_WATCHLIST = [
+    {'symbol': 'SPY', 'name': 'S&P 500 ETF'},
+    {'symbol': 'QQQ', 'name': 'Nasdaq 100 ETF'},
+    {'symbol': 'DIA', 'name': 'Dow Jones ETF'},
+    {'symbol': 'IWM', 'name': 'Russell 2000 ETF'},
+    {'symbol': '^VIX', 'name': 'Volatility Index'},
+    {'symbol': 'ES=F', 'name': 'S&P 500 Futures'},
+    {'symbol': 'NQ=F', 'name': 'Nasdaq 100 Futures'},
+    {'symbol': 'YM=F', 'name': 'Dow Jones Futures'},
+    {'symbol': 'RTY=F', 'name': 'Russell 2000 Futures'},
+    {'symbol': 'GC=F', 'name': 'Gold Futures'},
+    {'symbol': 'CL=F', 'name': 'Crude Oil Futures'},
+    {'symbol': 'BTC-USD', 'name': 'Bitcoin'},
+]
 
 def get_by_firebase_uid(db: Session, *, firebase_uid: str) -> User | None:
     """
@@ -13,7 +28,7 @@ def get_by_firebase_uid(db: Session, *, firebase_uid: str) -> User | None:
 
 def create(*, db: Session, obj_in: UserCreate) -> User:
     """
-    Create a new user.
+    Create a new user and populate their watchlist with default items.
     """
     db_obj = User(
         email=obj_in.email,
@@ -22,6 +37,14 @@ def create(*, db: Session, obj_in: UserCreate) -> User:
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
+
+    # Add default watchlist items
+    for item in DEFAULT_WATCHLIST:
+        watchlist_item = WatchlistItem(symbol=item['symbol'], name=item['name'], user_id=db_obj.id)
+        db.add(watchlist_item)
+    
+    db.commit()
+
     return db_obj
 
 

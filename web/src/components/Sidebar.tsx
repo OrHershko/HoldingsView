@@ -6,6 +6,7 @@ import { NavItem } from '@/types';
 import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
+  setIsSidebarOpen: (isOpen: boolean) => void;
   activeItem: string;
   setActiveItem: (id: string) => void;
   resetState: () => void;
@@ -13,9 +14,10 @@ interface SidebarProps {
 
 const navItems: NavItem[] = [
   { id: 'home', name: 'Home', icon: 'home', path: '/' },
+  { id: 'watchlist', name: 'Watchlist', icon: 'list', path: '/watchlist' },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ activeItem, setActiveItem, resetState }) => {
+const Sidebar: React.FC<SidebarProps> = ({ setIsSidebarOpen, activeItem, setActiveItem, resetState }) => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -25,6 +27,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, setActiveItem, resetState
       return;
     }
     setActiveItem(id);
+    setIsSidebarOpen(false);
     navigate(path);
   };
 

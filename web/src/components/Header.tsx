@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Menu, LogOut, ArrowLeft, Search as SearchIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '@/assets/Logo.png';
 import SearchBar from './SearchBar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -26,6 +26,7 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +39,9 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const [showBackButton, setShowBackButton] = useState(false);
+
+  // Check if we're on the watchlist page
+  const isWatchlistPage = location.pathname === '/watchlist';
 
   useEffect(() => {
     if (searchOpen && searchInputRef.current) {
@@ -90,7 +94,7 @@ const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-       {!isGuest && onSelectStock && (
+       {!isGuest && onSelectStock && !isWatchlistPage && (
           <Popover open={searchOpen} onOpenChange={setSearchOpen}>
             <PopoverTrigger asChild>
               <button

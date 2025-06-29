@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import apiClient from '@/services/apiService';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface AuthContextProps {
   currentUser: User | null;
@@ -34,6 +35,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Sign up function
   const signUp = async (email: string, password: string, displayName: string) => {
@@ -60,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Logout function
   const logout = async () => {
     await signOut(auth);
+    queryClient.clear();
   };
 
   // Reset password function

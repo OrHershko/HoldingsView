@@ -114,6 +114,109 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
     return intervalDays >= (periodDays * 0.8); // If interval is 80% or more of period, it's too long
   };
 
+  // Calculate percentage change for the selected period
+  const calculatePeriodChange = () => {
+    const rawPrices = Array.isArray(stockData.historical_prices)
+      ? stockData.historical_prices
+      : [];
+
+    if (rawPrices.length < 2) return null;
+
+    const sortedPrices = [...rawPrices].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Calculate the exact start date based on the selected period
+    const now = new Date();
+    let startDate: Date;
+
+    switch (period) {
+      case '1d':
+        startDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago
+        break;
+      case '5d':
+        startDate = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000); // 5 days ago
+        break;
+      case '1mo':
+        startDate = new Date(now);
+        startDate.setMonth(startDate.getMonth() - 1); // 1 month ago
+        break;
+      case '3mo':
+        startDate = new Date(now);
+        startDate.setMonth(startDate.getMonth() - 3); // 3 months ago
+        break;
+      case '6mo':
+        startDate = new Date(now);
+        startDate.setMonth(startDate.getMonth() - 6); // 6 months ago
+        break;
+      case 'ytd':
+        startDate = new Date(now.getFullYear(), 0, 1); // January 1st of current year
+        break;
+      case '1y':
+        startDate = new Date(now);
+        startDate.setFullYear(startDate.getFullYear() - 1); // 1 year ago
+        break;
+      case '2y':
+        startDate = new Date(now);
+        startDate.setFullYear(startDate.getFullYear() - 2); // 2 years ago
+        break;
+      case '5y':
+        startDate = new Date(now);
+        startDate.setFullYear(startDate.getFullYear() - 5); // 5 years ago
+        break;
+      case '10y':
+        startDate = new Date(now);
+        startDate.setFullYear(startDate.getFullYear() - 10); // 10 years ago
+        break;
+      case 'max':
+        // For max, use the earliest available data
+        startDate = new Date(sortedPrices[0]?.date);
+        break;
+      default:
+        startDate = new Date(now);
+        startDate.setFullYear(startDate.getFullYear() - 1); // Default to 1 year
+    }
+
+    // Find the price closest to the calculated start date
+    const findClosestPrice = (targetDate: Date) => {
+      let closestPrice = null;
+      let minDiff = Infinity;
+
+      for (const priceData of sortedPrices) {
+        const priceDate = new Date(priceData.date);
+        const diff = Math.abs(priceDate.getTime() - targetDate.getTime());
+        
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestPrice = priceData;
+        }
+      }
+      
+      return closestPrice;
+    };
+
+    const startPriceData = findClosestPrice(startDate);
+    const endPriceData = sortedPrices[sortedPrices.length - 1]; // Most recent price
+
+    if (!startPriceData || !endPriceData || !startPriceData.close || !endPriceData.close) {
+      return null;
+    }
+
+    const startPrice = startPriceData.close;
+    const endPrice = endPriceData.close;
+    const changePercent = ((endPrice - startPrice) / startPrice) * 100;
+
+    return {
+      percent: changePercent,
+      isPositive: changePercent >= 0,
+      formatted: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+      startDate: startPriceData.date,
+      endDate: endPriceData.date
+    };
+  };
+
+  const periodChange = calculatePeriodChange();
+
   // Get valid intervals for current period
   const getValidIntervals = (currentPeriod: string) => {
     if (isLongPeriod(currentPeriod)) {
@@ -267,51 +370,80 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="text-2xl">{stockData.short_name || stockData.symbol}</CardTitle>
-          <div className="text-right">
-            <p className="text-2xl font-bold">${stockData.current_price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            <div className="flex flex-col items-end gap-1">
-              <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+          
+          {/* Three-column price layout*/}
+          <div className="hidden md:grid grid-cols-3 gap-4">
+            {/* Column 1: Current Price & Daily Change */}
+            <div className="flex flex-col items-start gap-1">
+              <p className="text-sm text-gray-400">Current Price</p>
+              <p className="text-lg ">${stockData.current_price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-sm text-gray-400">Today's Change</p>
+              <p className={`text-lg ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                 {isPositive ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
                 {stockData.trading_info?.regular_market_change_percent?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
               </p>
-              
-              {/* Pre/After Market Hours Display */}
-              {stockData.trading_info?.market_state && stockData.trading_info.market_state !== 'REGULAR' && (
-                <div className="text-xs">
+            </div>
+
+            {/* Column 2: Pre/After Market Hours */}
+            <div className="flex flex-col items-start gap-1">
+              <p className="text-sm text-gray-400">Extended Hours</p>
+              {stockData.trading_info?.market_state && stockData.trading_info.market_state !== 'REGULAR' ? (
+                <>
                   {/* Pre-market */}
                   {stockData.trading_info.pre_market_price && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-400">Pre:</span>
-                      <span className="text-white">${stockData.trading_info.pre_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <div className="text-lg">
+                      <div className="text-white">${stockData.trading_info.pre_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       {stockData.trading_info.pre_market_change_percent && (
-                        <span className={`${stockData.trading_info.pre_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ({stockData.trading_info.pre_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.pre_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
-                        </span>
+                        <div className={`${stockData.trading_info.pre_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          <p className="text-sm text-gray-400 mt-0.5 mb-0.5">Pre-Market Change</p>
+                          {stockData.trading_info.pre_market_change_percent >= 0 ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
+                          {stockData.trading_info.pre_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.pre_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                        </div>
                       )}
                     </div>
                   )}
                   
                   {/* Post-market */}
                   {stockData.trading_info.post_market_price && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-400">After:</span>
-                      <span className="text-white">${stockData.trading_info.post_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <div className="text-lg flex flex-col items-start gap-1 text-left">
+                      <div className="text-white">${stockData.trading_info.post_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       {stockData.trading_info.post_market_change_percent && (
-                        <span className={`${stockData.trading_info.post_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ({stockData.trading_info.post_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.post_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
-                        </span>
+                        <div className={`${stockData.trading_info.post_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          <p className="text-sm text-gray-400 mt-0.5 mb-0.5">After Hours Change</p>
+                          {stockData.trading_info.post_market_change_percent >= 0 ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
+                          {stockData.trading_info.post_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.post_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                        </div>
                       )}
                     </div>
                   )}
-                  
-                  {/* Market State Indicator */}
-                  <div className="text-gray-500 text-[10px] mt-0.5">
-                    {stockData.trading_info.market_state === 'PRE' && 'Pre-Market'}
-                    {stockData.trading_info.market_state === 'POST' && 'After Hours'}
-                    {stockData.trading_info.market_state === 'CLOSED' && 'Market Closed'}
-                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-gray-500">Regular Hours</div>
+              )}
+            </div>
+
+            {/* Column 3: Period Change */}
+            <div className="flex flex-col items-start gap-1 text-left ml-2">
+              <p className="text-sm text-gray-400">Period ({periods.find(p => p.value === period)?.label})</p>
+              {periodChange && (
+                <div className={`flex items-center gap-1 px-2 py-1 rounded text-sm font-medium ${
+                  periodChange.isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {periodChange.isPositive ? (
+                    <TrendingUp className="h-4 w-4" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4" />
+                  )}
+                  <span>{periodChange.formatted}</span>
                 </div>
               )}
+              {/* Market State Indicator */}
+              <div className=" text-lg mt-0.5">
+                <p className="text-sm text-gray-400">Market State</p>
+                    {stockData.trading_info.market_state === 'PRE' && 'Pre-Market'}
+                    {stockData.trading_info.market_state === 'POST' && 'After Hours'}
+                    {stockData.trading_info.market_state === 'CLOSED' && 'Closed'}
+              </div>
             </div>
           </div>
         </div>
@@ -327,24 +459,26 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
           {/* Mobile: Stack all controls vertically */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 sm:items-center sm:justify-between">
             {/* Period and Interval Controls */}
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full xs:w-auto xs:min-w-[100px] justify-start">
-                    <CalendarRange className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">Period: {periods.find(p => p.value === period)?.label}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuRadioGroup value={period} onValueChange={handlePeriodChange}>
-                    {periods.map(p => (
-                      <DropdownMenuRadioItem key={p.value} value={p.value}>
-                        {p.label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex gap-2 sm:gap-3 flex-1">
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full xs:w-auto xs:min-w-[100px] justify-start">
+                      <CalendarRange className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">Period: {periods.find(p => p.value === period)?.label}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    <DropdownMenuRadioGroup value={period} onValueChange={handlePeriodChange}>
+                      {periods.map(p => (
+                        <DropdownMenuRadioItem key={p.value} value={p.value}>
+                          {p.label}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -364,7 +498,7 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            
+
             {/* Indicators Control */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -11,6 +11,9 @@ import ForgotPassword from "./components/auth/ForgotPassword";
 import Index from "./pages/Index";
 import PublicRoute from "./components/auth/PublicRoute";
 import NotFound from "./pages/NotFound";
+import Watchlist from "./pages/Watchlist";
+import Layout from "./components/Layout";
+
 const queryClient = new QueryClient();
 
 const AppRoutes = () => {
@@ -34,7 +37,19 @@ const AppRoutes = () => {
         path="/" 
         element={
           <ProtectedRoute>
-            <Index />
+            <Layout>
+              <Index />
+            </Layout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/watchlist" 
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Watchlist />
+            </Layout>
           </ProtectedRoute>
         } 
       />

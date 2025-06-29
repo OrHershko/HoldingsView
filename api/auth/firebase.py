@@ -78,6 +78,8 @@ def get_current_user(
         if not user.is_active:
             raise HTTPException(status_code=400, detail="Inactive user")
 
+        # Refresh the user object to ensure we have the latest data from the DB
+        db.refresh(user)
         return user
 
     except auth.InvalidIdTokenError:

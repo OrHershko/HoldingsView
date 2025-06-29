@@ -1,11 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePortfolio } from '@/hooks/useAppQueries';
 import { useDeleteTransaction } from '@/hooks/useAppMutations';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import PortfolioHeader from '@/components/dashboard/PortfolioHeader';
 import HoldingsList from '@/components/dashboard/HoldingsList';
 import StockDetailsView from '@/components/dashboard/StockDetailsView';
@@ -14,7 +11,6 @@ import DeleteHoldingDialog from '@/components/DeleteHoldingDialog';
 import EditHoldingDialog from '@/components/EditHoldingDialog';
 import { toast } from '@/components/ui/sonner';
 import { EnrichedHolding, TransactionRead } from '@/types/api';
-import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 
 const FullPageLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -22,9 +18,12 @@ const FullPageLoader: React.FC = () => (
   </div>
 );
 
-const Index: React.FC = () => {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [activeNavItem, setActiveNavItem] = useState('home');
+interface IndexProps {
+  headerSelectedSymbol?: string | null;
+  onClearHeaderSelection?: () => void;
+}
+
+const Index: React.FC<IndexProps> = ({ headerSelectedSymbol, onClearHeaderSelection }) => {
   const [isAddTransactionOpen, setAddTransactionOpen] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'holdings' | 'details'>('holdings');
@@ -36,6 +35,18 @@ const Index: React.FC = () => {
   const [selectedHolding, setSelectedHolding] = useState<EnrichedHolding | null>(null);
 
   const observerRef = useRef<ResizeObserver | null>(null);
+
+  // Handle symbol selection from header search
+  useEffect(() => {
+    if (headerSelectedSymbol) {
+      setSelectedSymbol(headerSelectedSymbol);
+      if (window.innerWidth < 768) {
+        setMobileView('details');
+      }
+      // Clear the header selection after we've processed it
+      onClearHeaderSelection?.();
+    }
+  }, [headerSelectedSymbol, onClearHeaderSelection]);
 
   const measuredRef = useCallback((node: HTMLDivElement | null) => {
     // Disconnect any existing observer
@@ -80,8 +91,6 @@ const Index: React.FC = () => {
     return portfolioData.transactions.filter(t => t.symbol === selectedSymbol);
   }, [portfolioData?.transactions, selectedSymbol]);
 
-  const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
-  
   const handleSelectStock = useCallback((symbol: string) => {
     setSelectedSymbol(symbol);
     if (window.innerWidth < 768) {
@@ -119,33 +128,7 @@ const Index: React.FC = () => {
     }
   }, [portfolioData?.id, deleteTransactionMutation, selectedHolding]);
 
-
-
-  // Handle window resize to reset mobile view if screen becomes desktop
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768 && mobileView === 'details') {
-        // Don't reset selectedSymbol on desktop, just reset mobile view
-        setMobileView('holdings');
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [mobileView]);
-  
   const handleOpenAddTransaction = () => setAddTransactionOpen(true);
-
-  const resetState = () => {
-    setSelectedSymbol(null);
-    setMobileView('holdings');
-    setAddTransactionOpen(false);
-    setSidebarOpen(false);
-    setActiveNavItem('home');
-    setDeleteDialogOpen(false);
-    setEditDialogOpen(false);
-    setSelectedHolding(null);
-  };
 
   if (authLoading || (!isGuest && portfolioLoading && !portfolioData)) {
     return <FullPageLoader />;
@@ -156,93 +139,65 @@ const Index: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
-      <div className="lg:hidden">
-        <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="w-64 p-0 bg-gray-800 border-gray-700">
-            <VisuallyHidden.Root>
-              <SheetTitle>Navigation Menu</SheetTitle>
-              <SheetDescription>Main navigation and portfolio options</SheetDescription>
-            </VisuallyHidden.Root>
-            <Sidebar activeItem={activeNavItem} setActiveItem={setActiveNavItem} resetState={resetState} />
-          </SheetContent>
-        </Sheet>
+    <div className="h-full">
+      <div className="hidden md:block h-full p-4 lg:p-6">
+        <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+          <ResizablePanel defaultSize={35} minSize={0}>
+            <div className="flex flex-col h-full pr-4 space-y-4 overflow-y-auto overflow-x-hidden">
+              <PortfolioHeader 
+                portfolio={portfolioData}
+                onAddStock={handleOpenAddTransaction}
+              />
+              <HoldingsList
+                holdings={holdings}
+                onSelectStock={handleSelectStock}
+                onEditHolding={handleEditHolding}
+                onDeleteHolding={handleDeleteHolding}
+              />
+            </div>
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+
+          <ResizablePanel defaultSize={65} minSize={0} className="min-w-0 overflow-hidden">
+            <div ref={measuredRef} className="h-full overflow-y-auto p-2">
+              <StockDetailsView 
+                symbol={selectedSymbol} 
+                transactions={transactionsForSelectedStock} 
+                portfolioId={portfolioData?.id}
+                containerWidth={chartContainerWidth}
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
-      <div className="flex flex-col flex-1 min-w-0">
-        <Header 
-          toggleSidebar={toggleSidebar} 
-          isGuest={isGuest} 
-          onSelectStock={handleSelectStock}
-          mobileView={mobileView}
-          selectedSymbol={selectedSymbol}
-          onBackToHoldings={() => {
-            setMobileView('holdings');
-            setSelectedSymbol(null);
-          }}
-        />
-        
-        <main className="flex-1 overflow-hidden">
-          <div className="hidden md:block h-full p-4 lg:p-6">
-            <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-              <ResizablePanel defaultSize={35} minSize={0}>
-                <div className="flex flex-col h-full pr-4 space-y-4 overflow-y-auto overflow-x-hidden">
-                  <PortfolioHeader 
-                    portfolio={portfolioData}
-                    onAddStock={handleOpenAddTransaction}
-                  />
-                  <HoldingsList
-                    holdings={holdings}
-                    onSelectStock={handleSelectStock}
-                    onEditHolding={handleEditHolding}
-                    onDeleteHolding={handleDeleteHolding}
-                  />
-                </div>
-              </ResizablePanel>
-              
-              <ResizableHandle withHandle />
-
-              <ResizablePanel defaultSize={65} minSize={0} className="min-w-0 overflow-hidden">
-                <div ref={measuredRef} className="h-full overflow-y-auto p-2">
-                  <StockDetailsView 
-                    symbol={selectedSymbol} 
-                    transactions={transactionsForSelectedStock} 
-                    portfolioId={portfolioData?.id}
-                    containerWidth={chartContainerWidth}
-                  />
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
+      <div className="md:hidden h-full flex flex-col overflow-y-auto">
+        {mobileView === 'holdings' ? (
+          <div className="flex-1">
+            <div className="h-full flex flex-col space-y-4 p-2">
+              <PortfolioHeader 
+                portfolio={portfolioData}
+                onAddStock={handleOpenAddTransaction}
+              />
+              <HoldingsList
+                holdings={holdings}
+                onSelectStock={handleSelectStock}
+                onEditHolding={handleEditHolding}
+                onDeleteHolding={handleDeleteHolding}
+              />
+            </div>
           </div>
-
-          <div className="md:hidden h-full flex flex-col overflow-y-auto">
-            {mobileView === 'holdings' ? (
-              <div className="flex-1">
-                <div className="h-full flex flex-col space-y-4 p-2">
-                  <PortfolioHeader 
-                    portfolio={portfolioData}
-                    onAddStock={handleOpenAddTransaction}
-                  />
-                  <HoldingsList
-                    holdings={holdings}
-                    onSelectStock={handleSelectStock}
-                    onEditHolding={handleEditHolding}
-                    onDeleteHolding={handleDeleteHolding}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div ref={measuredRef} className="flex-1 overflow-y-auto p-4">
-                <StockDetailsView 
-                  symbol={selectedSymbol} 
-                  transactions={transactionsForSelectedStock} 
-                  portfolioId={portfolioData?.id}
-                  containerWidth={chartContainerWidth}
-                />
-              </div>
-            )}
+        ) : (
+          <div ref={measuredRef} className="flex-1 overflow-y-auto p-4">
+            <StockDetailsView 
+              symbol={selectedSymbol} 
+              transactions={transactionsForSelectedStock} 
+              portfolioId={portfolioData?.id}
+              containerWidth={chartContainerWidth}
+            />
           </div>
-        </main>
+        )}
       </div>
 
       {/* Dialogs */}
