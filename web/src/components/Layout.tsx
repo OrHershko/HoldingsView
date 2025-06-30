@@ -36,10 +36,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setActiveNavItem('home');
   };
 
-  // Clear selected symbol when navigating to different pages
+  // Clear selected symbol when navigating to different pages and set active nav item
   useEffect(() => {
     setSelectedSymbol(null);
     setMobileView('holdings');
+    
+    // Set active nav item based on current route
+    if (location.pathname === '/' || location.pathname.startsWith('/stock/')) {
+      setActiveNavItem('home');
+    } else if (location.pathname === '/watchlist') {
+      setActiveNavItem('watchlist');
+    }
   }, [location.pathname]);
 
   // Clone children and pass selectedSymbol as prop if it's the Index page

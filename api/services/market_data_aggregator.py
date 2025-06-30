@@ -133,6 +133,7 @@ async def get_enriched_market_data(
             sector=info.get("sector"),
             industry=info.get("industry"),
             description=info.get("longBusinessSummary"),
+            quote_type=info.get("quoteType"),
             pe_ratio=info.get("trailingPE"),
             forward_pe_ratio=info.get("forwardPE"),
             price_to_book_ratio=info.get("priceToBook"),
@@ -156,6 +157,7 @@ async def get_enriched_market_data(
         
         trading_info = TradingInfo(
             market_state=info.get("marketState"),
+            regular_market_price=info.get("regularMarketPrice"),
             regular_market_change_percent=info.get("regularMarketChangePercent"),
             pre_market_price=info.get("preMarketPrice"),
             pre_market_change_percent=info.get("preMarketChangePercent"),
@@ -312,7 +314,7 @@ async def search_symbols(query: str) -> SymbolSearchResponse:
     results = []
     
     for q in quotes:
-        if 'symbol' in q and q.get('quoteType') in {'EQUITY', 'ETF'}:
+        if 'symbol' in q and q.get('quoteType') not in {'OPTION'}:
             symbol = q['symbol']
             if symbol not in seen_symbols:
                 seen_symbols.add(symbol)

@@ -44,6 +44,16 @@ const AppRoutes = () => {
         } 
       />
       <Route 
+        path="/stock/:symbol" 
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Index />
+            </Layout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
         path="/watchlist" 
         element={
           <ProtectedRoute>

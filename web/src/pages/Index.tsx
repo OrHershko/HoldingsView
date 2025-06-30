@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext';
 import { usePortfolio } from '@/hooks/useAppQueries';
 import { useDeleteTransaction } from '@/hooks/useAppMutations';
+import { useParams } from 'react-router-dom';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import PortfolioHeader from '@/components/dashboard/PortfolioHeader';
 import HoldingsList from '@/components/dashboard/HoldingsList';
@@ -35,6 +36,17 @@ const Index: React.FC<IndexProps> = ({ headerSelectedSymbol, onClearHeaderSelect
   const [selectedHolding, setSelectedHolding] = useState<EnrichedHolding | null>(null);
 
   const observerRef = useRef<ResizeObserver | null>(null);
+  const { symbol: urlSymbol } = useParams<{ symbol: string }>();
+
+  // Handle symbol selection from URL parameters
+  useEffect(() => {
+    if (urlSymbol) {
+      setSelectedSymbol(urlSymbol.toUpperCase());
+      if (window.innerWidth < 768) {
+        setMobileView('details');
+      }
+    }
+  }, [urlSymbol]);
 
   // Handle symbol selection from header search
   useEffect(() => {

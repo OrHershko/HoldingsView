@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/services/watchlistService';
 import { useCurrentPrices, useStockSearch } from '@/hooks/useMarketData';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Link, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { WatchlistItem as WatchlistItemType, SymbolSearchResult } from '@/types/api';
 import { toast } from 'sonner';
 
 const Watchlist: React.FC = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [newSymbol, setNewSymbol] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -61,6 +63,11 @@ const Watchlist: React.FC = () => {
         handleAddSymbol(newSymbol.trim());
       }
     }
+  };
+
+  const handleSelectSymbol = (symbol: string) => {
+
+    navigate(`/stock/${symbol.toUpperCase()}`);
   };
 
   const handleRemoveSymbol = (symbolToRemove: string) => {
@@ -151,7 +158,7 @@ const Watchlist: React.FC = () => {
                 const isNegative = change !== null && change < 0;
 
                 return (
-                  <tr key={item.symbol} className="border-t hover:bg-gray-700">
+                  <tr key={item.symbol} onClick={() => handleSelectSymbol(item.symbol)} className="border-t hover:bg-gray-700 cursor-pointer">
                     <td className="py-3 px-4 font-medium">{item.symbol}</td>
                     <td className="py-3 px-4 font-medium">{item.name}</td>
                     <td className="text-right py-3 px-4">
@@ -172,7 +179,15 @@ const Watchlist: React.FC = () => {
                       )}
                     </td>
                     <td className="text-right py-3 px-4">
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveSymbol(item.symbol)} disabled={removeMutation.isPending}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveSymbol(item.symbol);
+                        }} 
+                        disabled={removeMutation.isPending}
+                      >
                         <X className="h-4 w-4" />
                       </Button>
                     </td>

@@ -134,6 +134,7 @@ export interface Fundamentals {
     sector: string | null;
     industry: string | null;
     description: string | null;
+    quote_type: string | null;
     
     // Valuation Metrics
     pe_ratio: number | null;
@@ -166,6 +167,7 @@ export interface Fundamentals {
 // Matches api/schemas/market_data.py -> TradingInfo
 export interface TradingInfo {
     market_state: string | null;
+    regular_market_price: number | null;
     regular_market_change_percent: number | null;
     pre_market_price: number | null;
     pre_market_change_percent: number | null;

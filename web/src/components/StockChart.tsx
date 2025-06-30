@@ -368,11 +368,15 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
   return (
     <Card className="bg-gray-800 border-gray-700 text-white min-w-[300px]">
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-2xl">{stockData.short_name || stockData.symbol}</CardTitle>
+        <div className="flex justify-between ">
+          <div className="flex flex-col items-start gap-1">
+            <CardTitle className="text-2xl">{stockData.symbol}</CardTitle>
+            <p className="text-sm text-gray-400">{stockData.short_name || stockData.long_name}</p>
+            <p className="text-sm text-gray-400">{stockData.fundamentals?.quote_type}</p>
+          </div>
           
           {/* Three-column price layout*/}
-          <div className="hidden md:grid grid-cols-3 gap-4">
+          <div className={`hidden items-center md:grid gap-4 ${stockData.trading_info?.market_state && stockData.trading_info.market_state !== 'REGULAR' ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {/* Column 1: Current Price & Daily Change */}
             <div className="flex flex-col items-start gap-1">
               <p className="text-sm text-gray-400">Current Price</p>
@@ -385,49 +389,51 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
             </div>
 
             {/* Column 2: Pre/After Market Hours */}
-            <div className="flex flex-col items-start gap-1">
-              <p className="text-sm text-gray-400">Extended Hours</p>
-              {stockData.trading_info?.market_state && stockData.trading_info.market_state !== 'REGULAR' ? (
-                <>
-                  {/* Pre-market */}
-                  {stockData.trading_info.pre_market_price && (
-                    <div className="text-lg">
-                      <div className="text-white">${stockData.trading_info.pre_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      {stockData.trading_info.pre_market_change_percent && (
-                        <div className={`${stockData.trading_info.pre_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          <p className="text-sm text-gray-400 mt-0.5 mb-0.5">Pre-Market Change</p>
-                          {stockData.trading_info.pre_market_change_percent >= 0 ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
-                          {stockData.trading_info.pre_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.pre_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Post-market */}
-                  {stockData.trading_info.post_market_price && (
-                    <div className="text-lg flex flex-col items-start gap-1 text-left">
-                      <div className="text-white">${stockData.trading_info.post_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      {stockData.trading_info.post_market_change_percent && (
-                        <div className={`${stockData.trading_info.post_market_change_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          <p className="text-sm text-gray-400 mt-0.5 mb-0.5">After Hours Change</p>
-                          {stockData.trading_info.post_market_change_percent >= 0 ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
-                          {stockData.trading_info.post_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.post_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-xs text-gray-500">Regular Hours</div>
-              )}
-            </div>
+            {stockData.trading_info?.market_state && stockData.trading_info.market_state !== 'REGULAR' && (
+              <div className="flex flex-col items-start gap-1">
+                <p className="text-sm text-gray-400">Extended Hours</p>
+                {stockData.trading_info?.market_state && stockData.trading_info.market_state !== 'REGULAR' ? (
+                  <>
+                    {/* Pre-market */}
+                    {stockData.trading_info.pre_market_price && (
+                      <div className="text-lg">
+                        <div className="text-white">${stockData.trading_info.pre_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        {stockData.trading_info.pre_market_change_percent && (
+                          <div className={`${stockData.trading_info.pre_market_change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            <p className="text-sm text-gray-400 mt-0.5 mb-0.5">Pre-Market Change</p>
+                            {stockData.trading_info.pre_market_change_percent >= 0 ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
+                            {stockData.trading_info.pre_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.pre_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Post-market */}
+                    {stockData.trading_info.post_market_price && (
+                      <div className="text-lg flex flex-col items-start gap-1 text-left">
+                        <div className="text-white">${stockData.trading_info.post_market_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        {stockData.trading_info.post_market_change_percent && (
+                          <div className={`${stockData.trading_info.post_market_change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            <p className="text-sm text-gray-400 mt-0.5 mb-0.5">After Hours Change</p>
+                            {stockData.trading_info.post_market_change_percent >= 0 ? <TrendingUp className="h-4 w-4 inline-block mr-1" /> : <TrendingDown className="h-4 w-4 inline-block mr-1" />}
+                            {stockData.trading_info.post_market_change_percent >= 0 ? '+' : ''}{stockData.trading_info.post_market_change_percent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-xs text-gray-500">Regular Hours</div>
+                )}
+              </div>
+            )}  
 
             {/* Column 3: Period Change */}
             <div className="flex flex-col items-start gap-1 text-left ml-2">
-              <p className="text-sm text-gray-400">Period ({periods.find(p => p.value === period)?.label})</p>
+              <p className="text-sm text-gray-400">Period Change ({periods.find(p => p.value === period)?.label})</p>
               {periodChange && (
                 <div className={`flex items-center gap-1 px-2 py-1 rounded text-sm font-medium ${
-                  periodChange.isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                  periodChange.isPositive ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
                 }`}>
                   {periodChange.isPositive ? (
                     <TrendingUp className="h-4 w-4" />
@@ -443,6 +449,7 @@ const StockChart: React.FC<StockChartProps> = ({ stockData, symbol, period, inte
                     {stockData.trading_info.market_state === 'PRE' && 'Pre-Market'}
                     {stockData.trading_info.market_state === 'POST' && 'After Hours'}
                     {stockData.trading_info.market_state === 'CLOSED' && 'Closed'}
+                    {stockData.trading_info.market_state === 'REGULAR' && 'Regular Hours'}
               </div>
             </div>
           </div>

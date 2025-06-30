@@ -36,7 +36,7 @@ class Fundamentals(BaseModel):
     sector: Optional[str] = Field(None, description="Company's sector")
     industry: Optional[str] = Field(None, description="Company's industry")
     description: Optional[str] = Field(None, description="Long business summary")
-    
+    quote_type: Optional[str] = Field(None, description="Quote type")
     # Valuation Metrics
     pe_ratio: Optional[float] = Field(None, description="Price-to-Earnings ratio (TTM)")
     forward_pe_ratio: Optional[float] = Field(None, description="Forward Price-to-Earnings ratio")
@@ -73,6 +73,7 @@ class NewsArticle(BaseModel):
 class TradingInfo(BaseModel):
     """Real-time trading information."""
     market_state: Optional[str] = Field(None, description="Market state (e.g., PRE, REGULAR, POST)")
+    regular_market_price: Optional[float] = Field(None, description="Regular market price")
     regular_market_change_percent: Optional[float] = Field(None, description="Regular market day change in percent")
     pre_market_price: Optional[float] = Field(None, description="Pre-market price")
     pre_market_change_percent: Optional[float] = Field(None, description="Pre-market change in percent")

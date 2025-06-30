@@ -86,10 +86,14 @@ const StockDetailsView: React.FC<StockDetailsViewProps> = ({ symbol, transaction
         onIntervalChange={setInterval}
         containerWidth = {containerWidth}
       />
-      <AdvancedStockData stockData={stockData as EnrichedMarketData} />
-      <AIStockAnalysis stockData={stockData as EnrichedMarketData} LanguageOptions={LanguageOptions} />
-      <AITradingStrategy stockData={stockData as EnrichedMarketData} LanguageOptions={LanguageOptions} />
-      <TransactionHistory transactions={transactions} portfolioId={portfolioId} />
+      {stockData.fundamentals?.quote_type !== 'FUTURE' && (
+        <>
+          <AdvancedStockData stockData={stockData as EnrichedMarketData} />
+          <AIStockAnalysis stockData={stockData as EnrichedMarketData} LanguageOptions={LanguageOptions} />
+          <AITradingStrategy stockData={stockData as EnrichedMarketData} LanguageOptions={LanguageOptions} />
+          <TransactionHistory transactions={transactions} portfolioId={portfolioId} />
+        </>
+      )}
     </div>
   );
 };
